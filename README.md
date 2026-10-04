@@ -18,7 +18,13 @@ Honours project (CS41001), University of Dundee. Supervisor: Dr John Lawrence.
 **Prototype in development** - a hand-written tiny Transformer on PyTorch
 primitives, plus a minimal end-to-end pipeline (one synthetic task → seeded
 training loop → logged train/val metrics → one command → one plot). Build
-spec: [docs/planning/m1-spec.md](docs/planning/m1-spec.md).
+spec: [docs/planning/prototype-spec.md](docs/planning/prototype-spec.md).
+
+**Reporting:** training runs on MPS (Apple Silicon); the reproducibility
+guarantee is pinned on CPU - one test asserts bit-exact same-seed metrics
+there, while MPS may vary across drivers. Held-out patterns share no
+pattern-to-pattern mapping with training patterns, so flat or rising
+validation curves are expected and reported as-is.
 
 <!--
 ## Usage
@@ -33,7 +39,7 @@ uv run python -m tinylm.train --config configs/copy.yaml
 
 - [Project log](docs/LOG.md) - meeting and decision record
 - [Whole-project plan](docs/planning/plan.md) - phases, rubric mapping, LSEP, Gantt
-- [Prototype spec](docs/planning/m1-spec.md) - exactly what the prototype build contains
+- [Prototype spec](docs/planning/prototype-spec.md) - exactly what the prototype build contains
 - [Decision records](docs/adr/) - the why behind the design
 - [Reading list](docs/reading-list-seeds.md) - branch map + parked sources (references live in Zotero)
 
