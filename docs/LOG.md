@@ -63,7 +63,7 @@ Recorded scope and first milestone.
 - **Track:** primarily **research** with a substantial development side; formal
   declaration deferred to submission (canvas Q1.2 - supervisor left the track
   declaration open).
-- **Budget corrected: 24+ hrs/week** (the earlier 8–10 hr estimate was wrong);
+- **Budget corrected: 24+ hrs/week** (the earlier 8-10 hr estimate was wrong);
   phases re-checked against it.
 - **Docs consolidated:** repo made the single source of truth - plan, M1 spec,
   ADRs and reading map live under `docs/`; OneDrive planning files retired.
