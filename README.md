@@ -15,7 +15,7 @@ Honours project (CS41001), University of Dundee. Supervisor: Dr John Lawrence.
 
 ## Status
 
-**Milestone 1 in development** - a hand-written tiny Transformer on PyTorch
+**Prototype in development** - a hand-written tiny Transformer on PyTorch
 primitives, plus a minimal end-to-end pipeline (one synthetic task → seeded
 training loop → logged train/val metrics → one command → one plot). Build
 spec: [docs/planning/m1-spec.md](docs/planning/m1-spec.md).
@@ -33,7 +33,7 @@ uv run python -m tinylm.train --config configs/copy.yaml
 
 - [Project log](docs/LOG.md) - meeting and decision record
 - [Whole-project plan](docs/planning/plan.md) - phases, rubric mapping, LSEP, Gantt
-- [Milestone 1 spec](docs/planning/m1-spec.md) - exactly what Milestone 1 builds
+- [Prototype spec](docs/planning/m1-spec.md) - exactly what the prototype build contains
 - [Decision records](docs/adr/) - the why behind the design
 - [Reading list](docs/reading-list-seeds.md) - branch map + parked sources (references live in Zotero)
 
