@@ -34,17 +34,17 @@ deleted.
 
 ## 2026-10-02 - Meeting 1 (initial, Dr John Lawrence, ~10m)
 
-Recorded scope and first milestone.
+Recorded scope and the first build target.
 
 - **Scope:** the supervisor left the direction largely open, with the bar set
   high. Working standard adopted from this meeting: engineering depth
   over breadth - correct, tested, reproducible, inspectable work at every step.
-- **Explicit answers given:** Milestone 1 = "have the Transformer built"
+- **Explicit answers given:** first build target = "have the Transformer built"
   (development only, no experiments yet); laptop-only compute (Apple
   Silicon/MPS), training runs ≤ a few minutes; mostly own implementation on
   PyTorch primitives (attention, embeddings, training loop); fortnightly
   meetings Wednesdays 13:30.
-- **Decisions made:** Milestone 1 = tiny Transformer + minimal end-to-end
+- **Decisions made:** first build target = tiny Transformer + minimal end-to-end
   pipeline (repeated-token copying task, seeded training loop, logged
   train/val metrics, one command → learning-curve plot); repo in separate dev
   folder, public on GitHub; full plan drafted and since consolidated into the
@@ -65,14 +65,14 @@ Recorded scope and first milestone.
   declaration open).
 - **Budget corrected: 24+ hrs/week** (the earlier 8-10 hr estimate was wrong);
   phases re-checked against it.
-- **Docs consolidated:** repo made the single source of truth - plan, M1 spec,
+- **Docs consolidated:** repo made the single source of truth - plan, prototype spec,
   ADRs and reading map live under `docs/`; OneDrive planning files retired.
 
 ## 2026-10-04 - Grokking ADR retired; grokking confirmed mainline
 
 - **ADR "grokking is stretch, not headline" deleted:** the feasibility record
   says laptop-scale is the grokking-literature norm - Power et al.'s grokking
-  model (2-layer, width-128, 4-head decoder-only ≈ our M1 defaults), Nanda's
+  model (2-layer, width-128, 4-head decoder-only ≈ our spec defaults), Nanda's
   1-layer circuit analysis and Liu's same-scale transformers; verified during
   the literature grill. The ADR's remaining content (priority discipline +
   guaranteed floor) is carried by CONTEXT.md and plan.md. Remaining ADRs
@@ -93,7 +93,7 @@ Recorded scope and first milestone.
 
 ## Agenda - Meeting 2 (Wed 14 Oct 13:30 - confirmed)
 
-1. Demo: Milestone 1 live run - one command → plot; seed-reproducibility test
+1. Demo: prototype live run - one command → plot; seed-reproducibility test
    passing; attention-weight inspection if time allows. Reading programme
    complete: 17 sources, annotated in Zotero - interim report, literature
    review is assembly-ready.
