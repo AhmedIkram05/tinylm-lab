@@ -119,6 +119,16 @@ tinylm-lab/
 - **Tue 13 - Wed 14:** polish demo, agenda, log entry.
 - If it slips: cut eval granularity, not the transformer - the transformer is the core deliverable of this build.
 
+## Phased Plan - matches timeline above
+
+  1. Skeleton - pyproject.toml (torch, numpy, matplotlib, pyyaml, pytest; py>=3.11), uv.lock, .gitignore, package dirs, empty **init**.py. Verify uv sync + import torch works on this machine.
+  2. utils.py + config - Config dataclass (all 17 fields), yaml loader, set_seeds, get_device (mps→cpu).
+  3. data.py - seeded 4-tuple sampler with period-purity rejection, disjoint 512/512 split (assert), train-probe subset (128), batcher yielding torch.long (B,T).
+  4. model.py - sinusoidal PE (exact-value testable), hand-written causal MHA with return_attention, GELU exact, pre-LN blocks, final LN, tied head, pinned init. Demo config ≈0.4M params.
+  5. train.py - pinned AdamW, LM shift loss, copyable-position accuracy (4..31), eval loop (fixed probes, no_grad), JSONL logging with config_hash/torch_version, CLI (--config, --run-name, --steps, --device overrides), learning-curve plot (2 panels, Okabe-Ito, chance baseline).
+  6. Tests - test_model.py (shapes, causal invariance, tied weights, param ceiling), test_data.py (determinism, disjointness, period purity, vocab coverage), test_train.py (overfit-one-batch smoke, yaml round-trip), test_repro.py (two CPU subprocesses, identical rows except elapsed).
+  7. Polish - README, LOG.md entry, run repro test green, one-command demo run, push.
+
 ## Open questions - RESOLVED
 
 1. **Positional encoding: sinusoidal.** Hand-written formula, exact-value test, zero params; learned is 10 lines if the experiment phase ever needs it (YAGNI now).
