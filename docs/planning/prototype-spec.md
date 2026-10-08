@@ -1,55 +1,22 @@
 # Prototype and pipeline spec - "the Transformer is built"
 
-**Status:** Ready to begin implementation
+**Status:** Completed (08 Oct 2026)
 
-**Goal (one line):** By the next supervisor meeting (Wed 14 Oct 13:30): a tiny Transformer LM implemented from scratch on PyTorch primitives, plus a minimal end-to-end pipeline - one synthetic task → seeded training loop → logged train/val metrics → one command → one plot - tested and reproducible.
+**Goal:** By the next supervisor meeting (Wed 14 Oct 13:30) build a tiny Transformer LM from scratch on PyTorch primitives, plus a minimal end-to-end pipeline: one synthetic task → fixed-seed training loop → logged train/val metrics → one command → one plot, tested and reproducible.
 
----
+## Constraints
 
-## Source constraints (supervisor meeting + W1 canvas)
-
-- Supervisor's milestone scope: **"have the transformer built"** - development only, no experiment design yet.
-- Laptop-only compute (Apple Silicon, MPS backend). Training runs ≤ a few minutes. Models ≤ ~2M params (default config ≈ 0.4M; the headroom exists to extend the capacity-sweep axis, not to grow the default).
-- **Mostly own implementation**: attention, embeddings, training loop written on PyTorch primitives - not `nn.Transformer`, not a copied reference implementation (nanoGPT/Karpathy is reading material, not copy material).
-- Working standard: **engineering depth** (correct, tested, reproducible, inspectable), not breadth. Anything shiny → parking lot.
-- This build is the dev-start of a prototype: configurable tiny Transformer, fixed seeds, logged train/val metrics, one plot, one-command reproducibility.
-
----
+- Supervisor milestone: "have the transformer built": development only, no experiments yet.
+- Laptop-only (Apple Silicon, CPU canonical): 0.4M parameters  runs take seconds . The backend is not the constraint - the project keeps every variant under the ≤2M ceiling, because the result is more impressive/stronger at small scale (demo ≈ 0.4M).
+- Own implementation on torch primitives (attention, embeddings, loop) - no `nn.Transformer`, no copied reference.
+- Engineering depth over breadth: correct, tested, reproducible, inspectable; extras will go to the parking lot.
 
 ## Spec
 
-### Model (`tinylm/model.py`)
-
-- Token embeddings + **sinusoidal** positional encodings (decided: hand-written formula from Vaswani, zero params, exact-value unit test). Token embeddings scaled by √d_model before the PE is added (Vaswani's choice, pinned).
-- Causal multi-head self-attention: hand-written scaled dot-product (Q/K/V projections, causal mask). Contract: `model(x)` returns logits; `model(x, return_attention=True)` returns `(logits, attn)` with `attn` shape `(B, n_heads, T, T)` → inspectable evidence, enables heatmap. Dropout, when wired on, applies to attention weights only.
-- Feed-forward network (d_model → 4·d_model → d_model), GELU exact (`approximate='none'`).
-- Pre-LayerNorm residual blocks × n_layers, plus a final LayerNorm before the head.
-- Output head → next-token logits (**tied** embeddings, decided - no config flag; untied is an experiment-phase question if it ever matters).
-- Weight init: embeddings and head `normal(0, 0.02)`; Linear layers PyTorch default (kaiming_uniform). Pinned in code, named in the config.
-- One flat `Config` dataclass covering model + data + training: `vocab_size, seq_len, period, n_train, n_val, d_model, n_heads, n_layers, d_ff, dropout, lr, weight_decay, batch_size, steps, eval_every, seed, device` - everything important lives in the yaml (schema shown below).
-- Demo config ≈ 0.4M params (ceiling ~2M). `device: auto` = mps → cpu fallback; `cpu`/`mps` force a backend.
-
-### Task (`tinylm/data.py`) - decided: period-4, 512/512
-
-- Repeated-token copying: sequences are a 4-token pattern repeated to `seq_len=32` (8 repeats), over a vocab of 8 pattern tokens → 8⁴ = 4096 possible patterns. Sampled 4-tuples whose true period is < 4 (e.g. AAAA, ABAB) are rejected at generation time - period purity keeps the task-difficulty axis clean.
-- Seeded generator (numpy Generator, seed from config): sample **512 train patterns / 512 val patterns from disjoint sets** (assert disjointness). This gives the dataset-size series its knob - sweepable (64/256/512/1024) in the experiment phase.
-- "Novel combination" is exact: the two splits share no 4-tuple content (asserted disjointness; every token appears in training - also asserted in tests). The open question is the within-sequence positional rule: a general copy rule (token t−4) or in-context induction would solve val perfectly, but no val pattern can be derived from any train pattern. At this model size and budget we EXPECT memorisation, and either outcome is reportable: train↓ / val-flat is consistent with memorisation without generalisation (not proof of mechanism); val rising means the model found the general copying rule, itself a finding. Stated honestly in README.
-- Causal-LM framing (input = sequence, target = shifted by one); fixed-length batches, no padding needed.
-- Batches are `torch.long`, shape (B, T), moved to the active device per batch.
-
-### Training (`tinylm/train.py`)
-
-- AdamW + cross-entropy. **Pinned:** `AdamW(lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0)` - wd pinned at 0.0 here; nonzero wd belongs to the regularisation thread, not the prototype. Constant LR, no schedule, no gradient clipping.
-- **Defaults (decided):** d_model=128, n_heads=4, n_layers=2, d_ff=512 (≈0.4M params); batch 32, 500 steps, eval every 25 steps (20 log points) - target: visibly learning in <2 min on MPS, with headroom.
-- Batch sampling: each step draws `batch_size` pattern indices uniformly with replacement from a `torch.Generator` seeded with `config.seed`, indexing the fixed 512×32 train tensor.
-- Loss/metric definitions: loss = mean cross-entropy over positions 1..31 with the LM shift (`logits[:, :-1]`, `targets[:, 1:]`). Accuracy = mean per-position argmax match over the copyable positions (4..31) - the first 3 targets have no in-context evidence and are irreducibly unpredictable.
-- Eval every N steps, in eval mode under `torch.no_grad()`: train metrics on a fixed train-probe subset (128 train patterns, fixed at data-gen time) and val metrics on the full 512-pattern val set - never the current training batch (recency-biased, uncomparable across dataset sizes).
-- Log per eval interval to JSONL: `(step, train_loss, train_acc, val_loss, val_acc, lr, elapsed, seed, config_hash, torch_version)`. Bit-exact comparison covers the numeric loss/acc/lr columns only; `elapsed` is wall-clock and excluded by definition.
-- Seeds fixed at start: `random`, `numpy`, `torch`; `torch.use_deterministic_algorithms(True)` where the op set allows. Dropout is only invoked when p > 0 (wired-but-off dropout must not consume RNG). The CPU repro test is scoped to one machine and thread count (MPS determinism caveat below).
-- CLI: `python -m tinylm.train` → trains → writes `logs/<run>/metrics.jsonl` + `learning_curve.png`. `--config` defaults to `configs/copy.yaml` (sweeps pass others); `--run-name` defaults to `copy-<YYYYMMDD-HHMMSS>` and run dirs never overwrite. Plot: one figure, two panels (loss, accuracy), Okabe-Ito colour-blind-safe palette, dashed chance baseline at 1/vocab.
-- Dependencies (pyproject): `torch, numpy, matplotlib, pyyaml, pytest`; `requires-python >= 3.11`; `uv.lock` pins exact versions.
-
-### Example config (`configs/copy.yaml`)
+- **Model** (`tinylm/model.py`): √d-scaled embeddings + hand-written sinusoidal PE (zero params, exact-value test); hand-written causal MHA with `return_attention`; GELU-exact FFN; pre-LN blocks + final LN; tied head, no flag; init normal(0, 0.02) for embeddings/head, torch default for linears; flat 17-field `Config`; `device: cpu` canonical (bit-exact); `auto` resolves to CPU; `--device mps` is opt-in parity only; demo ≈ 0.4M, every capacity variant stays under the ≤2M ceiling.
+- **Task** (`tinylm/data.py`): repeat-copying, a 4-token pattern repeated to `seq_len=32` over 8 tokens; the sampler rejects impure periods and draws seeded 512 train / 512 val patterns from disjoint sets (disjointness asserted; every token appears in training); causal-LM shift targets; fixed `torch.long` (B, T) batches; eval probes stay fixed (128-pattern train subset + full val set, never the live batch).
+- **Training** (`tinylm/train.py`): AdamW values pinned at lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0, constant LR; defaults d_model=128, n_heads=4, n_layers=2, d_ff=512, batch 32, 500 steps, eval every 25; loss is mean CE over shifted positions, accuracy argmax match over copyable positions (4..31); eval under `torch.no_grad()` on fixed probes; JSONL logs 10 columns (step, train/val loss/acc, lr, elapsed, seed, config_hash, torch_version); seeds fixed with deterministic algorithms where allowed, dropout 0.0 wired-off; CLI `python -m tinylm.train` writes `logs/<run>/metrics.jsonl` + `learning_curve.png` (`--config` → `configs/copy.yaml`, `--run-name` → `copy-<timestamp>`, never overwrite); one figure, two panels, Okabe-Ito, chance baseline at 1/vocab; deps torch, numpy, matplotlib, pyyaml, pytest, py>=3.11, uv.lock pinned.
+- **Config** (`configs/copy.yaml`) stays exactly as below:
 
 ```yaml
 seed: 0
@@ -68,82 +35,54 @@ weight_decay: 0.0
 batch_size: 32
 steps: 500
 eval_every: 25
-device: auto
+device: cpu
 ```
 
-### Utils (`tinylm/utils.py`)
+- **Utils** (`tinylm/utils.py`): holds `set_seeds`, `get_device`, yaml → `Config` loading. Tiny by design.
+- **test_model.py** checks output shapes, causal masking (zero weights + logit invariance), return_attention shape, tied weights, param ceiling.
+- **test_data.py** checks seed determinism, split disjointness, period purity, vocab coverage.
+- **test_train.py** checks an overfit-one-batch smoke plus a yaml → Config round-trip.
+- **test_repro.py** checks two CPU subprocess runs log identical rows except `elapsed`; CPU scope is stated in the README.
+- **Layout**: `tinylm/__init__.py`, `tinylm/model.py`, `tinylm/data.py`, `tinylm/train.py`, `tinylm/utils.py`, configs/copy.yaml, tests/{test_model,test_data,test_train,test_repro}.py, pyproject.toml + uv.lock, README.md, .gitignore, LICENSE (MIT), docs/ (LOG.md, planning/, adr/, reading-list-seeds.md).
+- **Meeting 2 (Wed 14 Oct)**: runs one command live and the plot appears; shows LOG.md, reproduction test; and asks any burning Qs.
 
-- `set_seeds(seed)`, `get_device()`, config loading (yaml → one flat `Config` dataclass). Keep tiny.
-
-### Tests (`tests/`)
-
-- `test_model.py` - output shapes (B,T,V); causal masking correct: masked attention weights = 0 AND logit invariance (changing future tokens leaves earlier-position logits unchanged); `return_attention=True` returns (B, n_heads, T, T); tied weights are literally the same tensor; param count ≈ 0.4M at defaults with a hard ceiling of 2M; demo config builds a valid model.
-- `test_data.py` - generator deterministic under seed; split disjoint; every sampled pattern has true period = 4; all 8 vocab tokens appear in training; val sequences rule-consistent and novel; batches are torch.long (B,T).
-- `test_train.py` (smoke) - overfit-one-batch: 50 steps on a single fixed batch collapses loss (catches shift/mask/loss wiring bugs end-to-end); yaml → Config loader round-trip on configs/copy.yaml.
-- `test_repro.py` - two separate CPU subprocess runs (`--steps 50 --device cpu`) with the same seed produce identical logged rows on all columns except `elapsed`. **Honest caveat:** MPS may not be bit-deterministic across runs/drivers - the guarantee is pinned on CPU and stated as such in the README.
-
-### Repo layout
-
-```text
-tinylm-lab/
-  tinylm/{__init__,model,data,train,utils}.py
-  configs/copy.yaml
-  tests/{test_model,test_data,test_train,test_repro}.py
-  pyproject.toml  uv.lock
-  README.md  .gitignore  LICENSE (MIT)
-  docs/ (LOG.md, planning/, adr/, reading-list-seeds.md)
-```
-
-### Meeting demo (Wed 14 Oct)
-
-- Live: run the one command → plot appears.
-- Show LOG.md + agenda, repro test green, attention heatmap if time allows.
-- Scope of the claim: the demo curve demonstrates learning plus a signature consistent with memorisation - not overfitting dynamics and not grokking; the pre-registered grokking criteria live in the later experiment specs.
-
----
-
-## Parking lot (decisions for later)
+## Parking lot
 
 | Idea | Parked until |
 | --- | --- |
-| Checkpointing + config library | Experiment phase - promotable inside the corrected 24+ hrs/week budget; supervisor promotes per CONTEXT.md |
-| Multi-task registry | Experiment phase - only if a second parallel task is ever justified |
+| Checkpointing + config library | Experiment phase, if added to scope |
+| Multi-task registry | Experiment phase, only if a second task is ever justified, unlikely |
 | Web dashboard / W&B / distributed anything | Indefinitely |
 
-(Modular-arithmetic task and the seeds-≥3 / dataset-size protocol left the parking lot on the 2026-10-03 direction change - now mainline in `docs/planning/plan.md`.)
+## Timeline
 
-## Timeline (~15-18 hrs minimum before 14 Oct, inside 24+ hrs/week)
+- Sat 3 - Mon 5 Oct: workshop tasks + development skeleton.
+- Tue 6 - Thu 8 Oct: model → task → training loop → tests, in that order; freeze proto-v1 on 8 Oct.
+- Fri 9 - Wed 14 Oct: demo polish from the frozen build, meeting 2 agenda/Qs, LOG.md entry; hardening runs in parallel (started 9 Oct) and merges after supervisor sign-off.
 
-- **Sat 3 - Mon 5 Oct:** workshop tasks (repo, project log, Zotero, reading start) + dev skeleton.
-- **Tue 6 - Mon 12 Oct:** model → task → training loop → tests, in that order.
-- **Tue 13 - Wed 14:** polish demo, agenda, log entry.
-- If it slips: cut eval granularity, not the transformer - the transformer is the core deliverable of this build.
+## Phased plan
 
-## Phased Plan - matches timeline above
+1. Skeleton: pyproject, lockfile, gitignore, package dirs; checks uv sync + torch import.
+2. Utils + config: flat Config, yaml loader, seeds, device (cpu canonical; auto resolves to cpu; mps opt-in).
+3. Data: seeded sampler with purity rejection, disjoint 512/512, 128 probe, batcher.
+4. Model: sinusoidal PE, causal MHA + return_attention, GELU exact, pre-LN, tied head, init plan.
+5. Train: AdamW plan, shift loss, copyable acc, probe eval, JSONL, CLI, 2-panel plot.
+6. Tests: the four files above; each goes green before the next step starts.
+7. Polish: README, LOG entry, one-command demo, push.
 
-  1. Skeleton - pyproject.toml (torch, numpy, matplotlib, pyyaml, pytest; py>=3.11), uv.lock, .gitignore, package dirs, empty **init**.py. Verify uv sync + import torch works on this machine.
-  2. utils.py + config - Config dataclass (all 17 fields), yaml loader, set_seeds, get_device (mps→cpu).
-  3. data.py - seeded 4-tuple sampler with period-purity rejection, disjoint 512/512 split (assert), train-probe subset (128), batcher yielding torch.long (B,T).
-  4. model.py - sinusoidal PE (exact-value testable), hand-written causal MHA with return_attention, GELU exact, pre-LN blocks, final LN, tied head, pinned init. Demo config ≈0.4M params.
-  5. train.py - pinned AdamW, LM shift loss, copyable-position accuracy (4..31), eval loop (fixed probes, no_grad), JSONL logging with config_hash/torch_version, CLI (--config, --run-name, --steps, --device overrides), learning-curve plot (2 panels, Okabe-Ito, chance baseline).
-  6. Tests - test_model.py (shapes, causal invariance, tied weights, param ceiling), test_data.py (determinism, disjointness, period purity, vocab coverage), test_train.py (overfit-one-batch smoke, yaml round-trip), test_repro.py (two CPU subprocesses, identical rows except elapsed).
-  7. Polish - README, LOG.md entry, run repro test green, one-command demo run, push.
+## Open questions - settled
 
-## Open questions - RESOLVED
-
-1. **Positional encoding: sinusoidal.** Hand-written formula, exact-value test, zero params; learned is 10 lines if the experiment phase ever needs it (YAGNI now).
-2. **Copy-task shape: period-4, vocab 8, 512/512 disjoint split, seq_len 32.** Wins because the dataset-size series needs a sweepable knob - period-2's 64 pairs would have dead-ended it. Novel combination = disjoint 4-tuple sets.
-3. **Dropout: 0.0, wired but off.** Overfitting is the phenomenon of interest; dropout would've confound the demo.
-4. **Tied embeddings: yes, no flag.** Untied is an experiment-phase question.
-5. **Defaults:** d_model=128, n_heads=4, n_layers=2, d_ff=512 (≈0.4M); AdamW 1e-3, batch 32, 500 steps, eval 25.
-6. **Heatmap:** `return_attention` built + causal-masking-tested (it's the inspectability evidence); heatmap script = optional, if time allows; demo blocker is the one-command plot.
-7. **Tooling: uv + pyproject.toml** with pinned lockfile - makes the CPU seed-repro claim verifiable (torch version pinned).
-8. **Package name: `tinylm`** (repo `tinylm-lab`). Settled.
+1. PE is sinusoidal, hand-written, exact-value test; learned PE stays later work.
+2. Task is period-4, vocab 8, 512/512 disjoint, seq 32; disjoint 4-tuples give the size knob.
+3. Dropout is 0.0, wired but off; overfitting is the signal of interest.
+4. Embeddings are tied, no flag; untied stays an experiment-phase question.
+5. Defaults are d128 / h4 / L2 / d_ff512, AdamW 1e-3, batch 32, 500 steps, eval 25.
+6. Inspection comes from return_attention from day one; the one-command plot is the demo blocker.
 
 ## Definition of done
 
 - One command reproduces train → evaluate → plot from a saved config.
-- `pytest` passes locally (incl. CPU seed-reproducibility).
-- Same seed → same logged metrics (CPU).
-- README explains the 10-minute hello-world.
-- LOG.md entry written; repo pushed to GitHub.
+- pytest passes locally incl. CPU reproduction test.
+- Same seed gives same logged CPU metrics.
+- README explains the 10-minute run down.
+- LOG.md entry written.
