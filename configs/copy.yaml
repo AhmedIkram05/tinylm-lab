@@ -1,0 +1,18 @@
+# Copy task configuration for the TinyLM model.
+seed: 0
+vocab_size: 8
+seq_len: 32
+period: 4
+n_train: 512
+n_val: 512
+d_model: 128
+n_heads: 4
+n_layers: 2
+d_ff: 512
+dropout: 0.0
+lr: 0.001
+weight_decay: 0.0
+batch_size: 32
+steps: 500
+eval_every: 25
+device: cpu
