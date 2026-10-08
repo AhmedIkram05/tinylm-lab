@@ -15,32 +15,31 @@ Honours project (CS41001), University of Dundee. Supervisor: Dr John Lawrence.
 
 ## Status
 
-**Prototype in development** - a hand-written tiny Transformer on PyTorch
-primitives, plus a minimal end-to-end pipeline (one synthetic task → seeded
-training loop → logged train/val metrics → one command → one plot). Build
-spec: [docs/planning/prototype-spec.md](docs/planning/prototype-spec.md).
+**Prototype complete** - tiny Transformer on PyTorch primitives (≈0.4M params),
+and a minimal end-to-end pipeline (one synthetic
+task → seeded training loop → logged train/val metrics → one command → one
+plot). Build spec: [docs/planning/prototype-spec.md](docs/planning/prototype-spec.md).
+`pytest` is green (17 tests), including a CPU bit-exact same-seed reproducibility test.
 
-**Reporting:** training runs on MPS (Apple Silicon); the reproducibility
-guarantee is pinned on CPU - one test asserts bit-exact same-seed metrics
-there, while MPS may vary across drivers. Held-out patterns share no
-pattern-to-pattern mapping with training patterns, so flat or rising
-validation curves are expected and reported as-is.
+**Reporting:** the bit-exact same-seed guarantee is asserted on CPU, which makes CPU the
+canonical backend (MPS is faster but nondeterministic, so opt-in only). Held-out patterns
+share no pattern-to-pattern mapping with training patterns, so flat or rising validation
+curves are expected and reported as-is.
 
-<!--
 ## Usage
 
 ```bash
 uv run python -m tinylm.train --config configs/copy.yaml
 # → logs/<run>/metrics.jsonl + learning_curve.png
+
+uv run pytest
 ```
--->
 
 ## Documentation
 
-- [Project log](docs/LOG.md) - meeting and decision record
+- [Project log](LOG.md) - meeting and decision record
 - [Whole-project plan](docs/planning/plan.md) - phases, rubric mapping, LSEP, Gantt
 - [Prototype spec](docs/planning/prototype-spec.md) - exactly what the prototype build contains
-- [Decision records](docs/adr/) - the why behind the design
 - [Reading list](docs/reading-list-seeds.md) - branch map + parked sources (references live in Zotero)
 
 ## Licence
