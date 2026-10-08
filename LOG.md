@@ -32,7 +32,7 @@ he read only this file before a meeting?
 per-item outcomes (the plan-vs-outcome delta is informative); nothing is
 deleted.
 
-## 2026-10-02 - Meeting 1 (initial, Dr John Lawrence, ~10m)
+## 02-10-2026 - Meeting 1 (initial, Dr John Lawrence, ~10m)
 
 Recorded scope and the first build target.
 
@@ -48,18 +48,18 @@ Recorded scope and the first build target.
   pipeline (repeated-token copying task, seeded training loop, logged
   train/val metrics, one command → learning-curve plot); repo in separate dev
   folder, public on GitHub; full plan drafted and since consolidated into the
-  repo as `docs/planning/m1-spec.md`.
+  repo as `docs/planning/prototype-spec.md`.
 - **First task chosen:** repeated-token copying - simplest learnable structure,
   trains in seconds clean memorisation/generalisation split.
 
-## 2026-10-03 - Direction set and docs consolidated
+## 03-10-2026 - Direction set and docs consolidated
 
 - **Direction reverted the narrowing:** all three RQ factors are mainline
   again - capacity, dataset size and task difficulty as one-factor-at-a-time
-  series (≥3 seeds each) plus the grokking hunt on the modular-arithmetic
+  series (10 seeds each) plus the grokking hunt on the modular-arithmetic
   thread, all on the same framework. Retired "headline question" / "Plan B"
   vocabulary; the dataset-size series is the **guaranteed floor** that answers
-  the RQ alone under any outcome (CONTEXT.md).
+  the research question alone under any outcome.
 - **Track:** primarily **research** with a substantial development side; formal
   declaration deferred to submission (canvas Q1.2 - supervisor left the track
   declaration open).
@@ -68,19 +68,18 @@ Recorded scope and the first build target.
 - **Docs consolidated:** repo made the single source of truth - plan, prototype spec,
   ADRs and reading map live under `docs/`; OneDrive planning files retired.
 
-## 2026-10-04 - Grokking ADR retired; grokking confirmed mainline
+## 04-10-2026 - Grokking deferral decision reversed; grokking confirmed mainline
 
 - **ADR "grokking is stretch, not headline" deleted:** the feasibility record
   says laptop-scale is the grokking-literature norm - Power et al.'s grokking
   model (2-layer, width-128, 4-head decoder-only ≈ our spec defaults), Nanda's
-  1-layer circuit analysis and Liu's same-scale transformers; verified during
-  the literature grill. The ADR's remaining content (priority discipline +
-  guaranteed floor) is carried by CONTEXT.md and plan.md. Remaining ADRs
-  renumbered: 0001 laptop-first-compute, 0002 json-csv-logging-no-ui. Grokking
-  confirmed mainline on the modular-arithmetic thread (as plan.md reflects),
+  1-layer circuit analysis and Liu's same-scale transformers.
+  The ADR's remaining content (priority discipline + guaranteed floor) is carried
+  by plan.md. Remaining ADRs renumbered: 0001 laptop-first-compute, 0002 json-csv-logging-no-ui.
+  Grokking confirmed mainline on the modular-arithmetic thread (as plan.md reflects),
   dataset-size series as guaranteed floor.
 - **Honesty fix propagated:** "held-out patterns unpredictable by design" is
-  now stated as the correct mechanism (README + m1-spec): no pattern-to-pattern
+  now stated as the correct mechanism (README + prototype-spec): no pattern-to-pattern
   mapping exists, but a general positional copying rule could solve validation -
   memorisation is the expectation at this scale and budget, and a rising
   validation curve would be reported as a finding, not hidden.
@@ -93,10 +92,8 @@ Recorded scope and the first build target.
 
 ## Agenda - Meeting 2 (Wed 14 Oct 13:30 - confirmed)
 
-1. Demo: prototype live run - one command → plot; seed-reproducibility test
-   passing; attention-weight inspection if time allows. Reading programme
-   complete: 17 sources, annotated in Zotero - interim report, literature
-   review is assembly-ready.
+1. Demo: live run - one command → plot; seed-reproducibility test
+   passing.
 2. Canvas gap to close: when to bring the finalised RQ + experimental plan
    for sign-off.
 3. LSEP declaration form: we don't have it - ask where it's distributed
@@ -112,16 +109,31 @@ Recorded scope and the first build target.
 
 - **Ethics/LSEP:** no human participants or personal data → no full ethics
   application expected; submit the LSEP declaration in Week 9.
-- **Assessment timeline (weighting per Ahmed's module info - confirmed):**
-  Interim report Week 13 = **5% of grade** (lit review + project plan,
-  rubric feedback feeds final report). Final portfolio Week 24 Friday 12:00
-  = **95% of grade**. Demo Week 25, pass/fail (5 min demo + 10 min Q&A - must
+- **Assessment timeline:** Interim report Week 13 = **formative feedback only, 0% of
+  grade** (lit review + project plan, rubric feedback feeds the final
+  report). Dissertation / final portfolio Week 24 Friday 12:00 = **100% of
+  grade**. Demo Week 25, pass/fail (5 min demo + 10 min Q&A - must
   be able to explain own code). LSEP/ethics due Week 9. **Track chosen:
   primarily research with a substantial development side; formal declaration
-  at submission (canvas Q1.2).** Research-track marks:
-  25% RQ/rationale/lit review, 25% research design & rigour, 20% artefact
-  design & implementation, 20% analysis & conclusions, 10% dissertation
-  quality. NOTE: W1 welcome slides describe the interim report as "formative"
-  - generic deck, treated as wrong. Weighting confirmed directly with John
-  (2026-10-02): interim **5%**, final portfolio incl. demo **95%**.
+  at submission (canvas Q1.2).** Research-track marks (the portfolio
+  rubric): 25% RQ/rationale/lit review, 25% research design & rigour, 20%
+  artefact design & implementation, 20% analysis & conclusions, 10%
+  dissertation quality.
 - **Backups:** code → GitHub; documents → OneDrive.
+
+## 08-10-2026 - Prototype (Transformer + pipeline + tests)
+
+Target state: the "have the Transformer built" target from meeting 1 - `tinylm/` (utils, data, model, train), `configs/copy.yaml`, 17 pytest assertions green including the CPU bit-exact reproduction test. One command → metrics + graph/plot.
+
+- **Built:** `Config` (17 fields, validated) + YAML loader + seeds/device helpers; period-4 sampler (512/512 disjoint patterns, purity-rejected, fixed 128 probe, seeded Torch batcher); hand-written causal Transformer (sinusoidal PE, pre-LN, weight-tied output head, 397,824 parameters); training loop (pinned AdamW, LM-shift loss, copyable-position accuracy, JSONL + Okabe-Ito plot).
+
+- **Failures that taught something:** the first training run exposed an accuracy-slice off-by-one bug: `targets[:, 3:]` produced 29 target positions versus 28 prediction positions; this was fixed by aligning the slice with `targets[:, period:]`. The overfit test initially passed raw `(B,T,V)` logits to `cross_entropy`; this was a test-only bug, as the training implementation already handled the tensor dimensions correctly.
+
+- **Honest finding:** an MPS training run reached `train_acc 1.0000 / val_acc 0.9999` - at this budget, the results are consistent with the model learning the general copying rule rather than merely memorising the training patterns, but this is not yet established. The memorisation-vs-rule question therefore remains open for the experiment phase, with tougher settings such as smaller datasets and period sweeps.
+
+## 08-10-2026 - CPU canonical, MPS opt-in only
+
+Decision: canonical training backend is CPU (`configs/copy.yaml device: cpu`); MPS is opt-in, `--device mps`. MPS is faster on the current 0.4M tranformer but CPU is still chosen for determinism and CI compatibility, *not* speed: speed bump at this current size is minutes across the whole experiment phase, while MPS's nondeterminism would void the bit-exact same-seed guarantee the seed protocol depends on.
+
+- **Why:** `get_device("auto")` preferred MPS on this Mac, so every real run was MPS while `test_cpu_repro` proved bit-exactness on CPU - a split-brain (guarantee certified a path never used). Now main, floor run, repro test and `auto` itself are all CPU; the thing run is the thing proven deterministic.
+- **Changed:** `configs/copy.yaml` (`auto` -> `cpu`, one-time re-anchor); `get_device("auto")` now returns CPU, with MPS reachable only via `--device mps`; README Reporting line.
