@@ -32,6 +32,22 @@ he read only this file before a meeting?
 per-item outcomes (the plan-vs-outcome delta is informative); nothing is
 deleted.
 
+## Standing notes
+
+- **Ethics/LSEP:** no human participants or personal data → no full ethics
+  application expected; submit the LSEP declaration in Week 9.
+- **Assessment timeline:** Interim report Week 13 = **formative feedback only, 0% of
+  grade** (lit review + project plan, rubric feedback feeds the final
+  report). Dissertation / final portfolio Week 24 Friday 12:00 = **100% of
+  grade**. Demo Week 25, pass/fail (5 min demo + 10 min Q&A - must
+  be able to explain own code). LSEP/ethics due Week 9. **Track chosen:
+  primarily research with a substantial development side; formal declaration
+  at submission (canvas Q1.2).** Research-track marks (the portfolio
+  rubric): 25% RQ/rationale/lit review, 25% research design & rigour, 20%
+  artefact design & implementation, 20% analysis & conclusions, 10%
+  dissertation quality.
+- **Backups:** code → GitHub; documents → OneDrive.
+
 ## 02-10-2026 - Meeting 1 (initial, Dr John Lawrence, ~10m)
 
 Recorded scope and the first build target.
@@ -90,6 +106,20 @@ Recorded scope and the first build target.
   record here and from README/plan.md. The log is an internal decision-and-
   meeting record; agendas are set by Ahmed and shared at his discretion.
 
+## 08-10-2026 - Prototype Complete (Transformer + pipeline + tests)
+
+Target state: the "have the Transformer built" target from meeting 1 - `tinylm/` (utils, data, model, train), `configs/copy.yaml`, 17 pytest assertions green including the CPU bit-exact reproduction test. One command → metrics + graph/plot.
+
+- **Built:** `Config` (17 fields, validated) + YAML loader + seeds/device helpers; period-4 sampler (512/512 disjoint patterns, purity-rejected, fixed 128 probe, seeded Torch batcher); hand-written causal Transformer (sinusoidal PE, pre-LN, weight-tied output head, 397,824 parameters); training loop (pinned AdamW, LM-shift loss, copyable-position accuracy, JSONL + Okabe-Ito plot).
+- **Failures that taught something:** the first training run exposed an accuracy-slice off-by-one bug: `targets[:, 3:]` produced 29 target positions versus 28 prediction positions; this was fixed by aligning the slice with `targets[:, period:]`. The overfit test initially passed raw `(B,T,V)` logits to `cross_entropy`; this was a test-only bug, as the training implementation already handled the tensor dimensions correctly.
+- **Honest finding:** an MPS training run reached `train_acc 1.0000 / val_acc 0.9999` - at this budget, the results are consistent with the model learning the general copying rule rather than merely memorising the training patterns, but this is not yet established. The memorisation-vs-rule question therefore remains open for the experiment phase, with tougher settings such as smaller datasets and period sweeps.
+
+## 08-10-2026 - CPU canonical, MPS opt-in only
+
+- **Decision**: canonical training backend is CPU (`configs/copy.yaml device: cpu`); MPS is opt-in, `--device mps`. MPS is faster on the current 0.4M tranformer but CPU is still chosen for determinism and CI compatibility, *not* speed: speed bump at this current size is minutes across the whole experiment phase, while MPS's nondeterminism would void the bit-exact same-seed guarantee the seed protocol depends on.
+- **Why:** `get_device("auto")` preferred MPS on this Mac, so every real run was MPS while `test_cpu_repro` proved bit-exactness on CPU - a split-brain (guarantee certified a path never used). Now main, floor run, repro test and `auto` itself are all CPU; the thing run is the thing proven deterministic.
+- **Changed:** `configs/copy.yaml` (`auto` -> `cpu`, one-time re-anchor); `get_device("auto")` now returns CPU, with MPS reachable only via `--device mps`; README Reporting line.
+
 ## Agenda - Meeting 2 (Wed 14 Oct 13:30 - confirmed)
 
 1. Demo: live run - one command → plot; seed-reproducibility test
@@ -104,36 +134,3 @@ Recorded scope and the first build target.
    mapped to the marking criteria, risks + guaranteed floor stated; doubles as
    interim-report "project plan" material; LOG.md = time-actually-spent
    record.
-
-## Standing notes
-
-- **Ethics/LSEP:** no human participants or personal data → no full ethics
-  application expected; submit the LSEP declaration in Week 9.
-- **Assessment timeline:** Interim report Week 13 = **formative feedback only, 0% of
-  grade** (lit review + project plan, rubric feedback feeds the final
-  report). Dissertation / final portfolio Week 24 Friday 12:00 = **100% of
-  grade**. Demo Week 25, pass/fail (5 min demo + 10 min Q&A - must
-  be able to explain own code). LSEP/ethics due Week 9. **Track chosen:
-  primarily research with a substantial development side; formal declaration
-  at submission (canvas Q1.2).** Research-track marks (the portfolio
-  rubric): 25% RQ/rationale/lit review, 25% research design & rigour, 20%
-  artefact design & implementation, 20% analysis & conclusions, 10%
-  dissertation quality.
-- **Backups:** code → GitHub; documents → OneDrive.
-
-## 08-10-2026 - Prototype (Transformer + pipeline + tests)
-
-Target state: the "have the Transformer built" target from meeting 1 - `tinylm/` (utils, data, model, train), `configs/copy.yaml`, 17 pytest assertions green including the CPU bit-exact reproduction test. One command → metrics + graph/plot.
-
-- **Built:** `Config` (17 fields, validated) + YAML loader + seeds/device helpers; period-4 sampler (512/512 disjoint patterns, purity-rejected, fixed 128 probe, seeded Torch batcher); hand-written causal Transformer (sinusoidal PE, pre-LN, weight-tied output head, 397,824 parameters); training loop (pinned AdamW, LM-shift loss, copyable-position accuracy, JSONL + Okabe-Ito plot).
-
-- **Failures that taught something:** the first training run exposed an accuracy-slice off-by-one bug: `targets[:, 3:]` produced 29 target positions versus 28 prediction positions; this was fixed by aligning the slice with `targets[:, period:]`. The overfit test initially passed raw `(B,T,V)` logits to `cross_entropy`; this was a test-only bug, as the training implementation already handled the tensor dimensions correctly.
-
-- **Honest finding:** an MPS training run reached `train_acc 1.0000 / val_acc 0.9999` - at this budget, the results are consistent with the model learning the general copying rule rather than merely memorising the training patterns, but this is not yet established. The memorisation-vs-rule question therefore remains open for the experiment phase, with tougher settings such as smaller datasets and period sweeps.
-
-## 08-10-2026 - CPU canonical, MPS opt-in only
-
-Decision: canonical training backend is CPU (`configs/copy.yaml device: cpu`); MPS is opt-in, `--device mps`. MPS is faster on the current 0.4M tranformer but CPU is still chosen for determinism and CI compatibility, *not* speed: speed bump at this current size is minutes across the whole experiment phase, while MPS's nondeterminism would void the bit-exact same-seed guarantee the seed protocol depends on.
-
-- **Why:** `get_device("auto")` preferred MPS on this Mac, so every real run was MPS while `test_cpu_repro` proved bit-exactness on CPU - a split-brain (guarantee certified a path never used). Now main, floor run, repro test and `auto` itself are all CPU; the thing run is the thing proven deterministic.
-- **Changed:** `configs/copy.yaml` (`auto` -> `cpu`, one-time re-anchor); `get_device("auto")` now returns CPU, with MPS reachable only via `--device mps`; README Reporting line.
