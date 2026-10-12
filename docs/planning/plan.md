@@ -21,9 +21,9 @@ Supervisor meetings: fortnightly, Wednesdays 13:30.
 
 | Phase | When (calendar) | Output |
 | --- | --- | --- |
-| Framework core - Transformer + minimal pipeline (early build) | 3 Oct - 8 Oct (6d) | One command → train → metrics → plot; tests green incl. CPU seed repro; supervisor meeting 2 (14 Oct) demos the proto-spec. Hardening 9-15 Oct (7d, ends day before sweeps start 16 Oct); contingency is the iteration buffer to 30 Nov. |
+| Framework core - Transformer + minimal pipeline (early build) | 3 Oct - 8 Oct (6d) | One command → train → metrics → plot; tests green incl. CPU seed repro; supervisor meeting 2 (14 Oct) demos the proto-spec. Hardening 9-22 Oct (14d, incl. a week after supervisor meeting 2 (14 Oct) to fold in feedback; sweeps start 23 Oct); contingency is the iteration buffer to 30 Nov. |
 | Reading & literature grounding | 24 Sep - 18 Dec (ongoing, feeds interim report, due 18 Dec) | sources collected in Zotero; page-anchored annotations from 8 Oct; synthesis (theme statements + gap) late Oct - mid Nov. |
-| Experiments - capacity × dataset size × task difficulty + grokking | Core sweeps 16 Oct - 6 Nov (~12 machine-hours over ~3 wks incl. reruns; measured ~6 min/axis at 500 steps, 12h is buffer for 10k-step grokking + reruns; starts after hardening ends 15 Oct); iteration buffer + grokking extension to 30 Nov | Three one-factor-at-a-time sweeps × 10 seeds on the same framework: capacity (depth/width grid at fixed dataset size), dataset size (~64/256/512/1024), task difficulty (period-2 → period-4 → modular arithmetic); pilot val per-config fresh overlapping, final curve uses fixed common val; grokking runs on the modular-arithmetic thread; gap-vs-factor comparisons; regularisation series (dropout/weight decay) as the fourth thread if compute allows (the regularisation question from the project canvas); honest failure log; any stalling thread → decision with supervisor |
+| Experiments - capacity × dataset size × task difficulty + grokking | Core sweeps 23 Oct - 13 Nov (~12 machine-hours over ~3 wks incl. reruns; measured ~6 min/axis at 500 steps, 12h is buffer for 10k-step grokking + reruns; starts after hardening ends 22 Oct); iteration buffer + grokking extension to 30 Nov | Three one-factor-at-a-time sweeps × 10 seeds on the same framework: capacity (depth/width grid at fixed dataset size), dataset size (~64/256/512/1024), task difficulty (period-2 → period-4 → modular arithmetic); pilot val per-config fresh overlapping, final curve uses fixed common val; grokking runs on the modular-arithmetic thread; gap-vs-factor comparisons; regularisation series (dropout/weight decay) as the fourth thread if compute allows (the regularisation question from the project canvas); honest failure log; any stalling thread → decision with supervisor |
 | Interim report (Week 13) | late Nov - mid Dec | Project plan (written) + first lit-review synthesis draft (context / themes / closest work / gap) - dull but needed, synthesis work; formative feedback only (0% grade) |
 | Testing & evaluation | Jan - mid Feb (continuous) | Final confirmatory runs (edge cases, CPU/MPS parity, longer/more runs); sweep analysis: gap-vs-factor plots across all three series, 10-seed error bars, limitations; pilot validation per-config fresh overlapping, final curve uses fixed common val; negative results reported honestly |
 | Dissertation writing | late Jan - early Apr (to W24 Fri 02 Apr; overlaps testing to 12 Feb - analysis as runs land) | Report + appendices (configs, logs, plots) |
@@ -87,12 +87,12 @@ gantt
 
     section Design (W2-4)
     Build Transformer + pipeline + tests :done, proto, 2026-10-01, 2026-10-09
-    Harden proto + methods freeze (seed protocol) :active, harden, 2026-10-09, 2026-10-16
+    Harden proto + methods freeze (seed protocol) :active, harden, 2026-10-09, 2026-10-23
 
     section Experiments (W4-11)
-    Sweeps (capacity / size / difficulty x 10 seeds) :exps, after harden, 2026-11-07
-    Iteration buffer + grokking extension           :buf, 2026-11-09, 2026-12-01
-    %% buf starts Mon 09 Nov (weekend 07-08 Nov gap); absolute dates intentional - follows exps
+    Sweeps (capacity / size / difficulty x 10 seeds) :exps, 2026-10-23, 2026-11-14
+    Iteration buffer + grokking extension           :buf, 2026-11-16, 2026-12-01
+    %% exps starts Fri 23 Oct (after harden ends 22 Oct), ends Fri 13 Nov; buffer starts Mon 16 Nov (weekend 14-15 Nov gap); absolute dates intentional
 
     section LSEP (W8-9)
     LSEP form preparation and submission        :lsep, 2026-11-09, 2026-11-21
