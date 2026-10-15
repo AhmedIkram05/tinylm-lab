@@ -5,11 +5,15 @@ language models learn: synthetic data generation, a configurable tiny
 Transformer, and a training/evaluation pipeline with logged, reproducible
 metrics.
 
-**Research question:** How do model capacity, dataset size and task difficulty
-affect memorisation, generalisation and overfitting in miniature Transformers?
+**Research question:** How do model capacity, dataset size and task difficulty affect memorisation and generalisation in miniature Transformers trained on synthetic sequence-copying and modular-arithmetic tasks?
 
-All three factors in the RQ run as mainline one-factor-at-a-time series,
-with a grokking hunt at the modular-arithmetic extreme of the difficulty series.
+**Sub-question:** Under what conditions does delayed generalisation (grokking) emerge on the modular-arithmetic task?
+
+All three factors in the RQ run as mainline one-factor-at-a-time series, with
+the grokking sub-question riding the modular-arithmetic thread; sequence copying
+and modular arithmetic are two task families with their own difficulty controls,
+not one difficulty scale.
+[docs/planning/plan.md](docs/planning/plan.md).
 
 Honours project (CS41001), University of Dundee. Supervisor: Dr John Lawrence.
 
@@ -40,7 +44,6 @@ uv run pytest
 - [Project log](LOG.md) - meeting and decision record
 - [Whole-project plan](docs/planning/plan.md) - phases, rubric mapping, LSEP, Gantt
 - [Prototype spec](docs/planning/prototype-spec.md) - exactly what the prototype build contains
-- [Reading list](docs/reading-list-seeds.md) - branch map + parked sources (references live in Zotero)
 
 ## Licence
 

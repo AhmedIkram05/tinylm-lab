@@ -44,7 +44,7 @@ device: cpu
 - **test_train.py** checks an overfit-one-batch smoke plus a yaml → Config round-trip.
 - **test_repro.py** checks two CPU subprocess runs log identical rows except `elapsed`; CPU scope is stated in the README.
 - **Layout**: `tinylm/__init__.py`, `tinylm/model.py`, `tinylm/data.py`, `tinylm/train.py`, `tinylm/utils.py`, configs/copy.yaml, tests/{test_model,test_data,test_train,test_repro}.py, pyproject.toml + uv.lock, README.md, .gitignore, LICENSE (MIT), docs/ (LOG.md, planning/, adr/, reading-list-seeds.md).
-- **Meeting 2 (Wed 14 Oct)**: runs one command live and the plot appears; shows LOG.md, reproduction test; and asks any burning Qs.
+- **Meeting 2 (Wed 14 Oct)**: did not take place (supervisor unavailable); the live demo/Qs carried to meeting 3 (Wed 28 Oct) - see LOG.md.
 
 ## Parking lot
 
@@ -58,7 +58,7 @@ device: cpu
 
 - Sat 3 - Mon 5 Oct: workshop tasks + development skeleton.
 - Tue 6 - Thu 8 Oct: model → task → training loop → tests, in that order; freeze proto-v1 on 8 Oct.
-- Fri 9 - Wed 14 Oct: demo polish from the frozen build, meeting 2 agenda/Qs, LOG.md entry; hardening runs in parallel (started 9 Oct) and merges after supervisor sign-off.
+- Fri 9 - Wed 28 Oct: demo polish from the frozen build, meeting agenda/Qs, LOG.md entry; hardening runs in parallel (started 9 Oct) and merges after supervisor sign-off. (Meeting 2, 14 Oct, did not take place; carried to 28 Oct - see LOG.md.)
 
 ## Phased plan
 

@@ -120,17 +120,50 @@ Target state: the "have the Transformer built" target from meeting 1 - `tinylm/`
 - **Why:** `get_device("auto")` preferred MPS on this Mac, so every real run was MPS while `test_cpu_repro` proved bit-exactness on CPU - a split-brain (guarantee certified a path never used). Now main, floor run, repro test and `auto` itself are all CPU; the thing run is the thing proven deterministic.
 - **Changed:** `configs/copy.yaml` (`auto` -> `cpu`, one-time re-anchor); `get_device("auto")` now returns CPU, with MPS reachable only via `--device mps`; README Reporting line.
 
-## Agenda - Meeting 2 (Wed 14 Oct 13:30 - confirmed)
+## 13-10-2026 - Research question frozen (main RQ + sub-question)
 
-1. Demo: live run - one command → plot; seed-reproducibility test
-   passing.
-2. Canvas gap to close: when to bring the finalised RQ + experimental plan
-   for sign-off.
-3. LSEP declaration form: we don't have it - ask where it's distributed
-   (MyDundee module area?) so it's ready before the Week 9 deadline.
-4. Whole-project plan / Gantt chart (W1 slides: "Agree your own plan with your
-   supervisor"): **drafted - see `docs/planning/plan.md`** - module milestones
-   fixed (LSEP W9, interim W13, portfolio W24, demo W25), project phases
-   mapped to the marking criteria, risks + guaranteed floor stated; doubles as
-   interim-report "project plan" material; LOG.md = time-actually-spent
-   record.
+**Main RQ:** How do model capacity, dataset size and task difficulty affect memorisation and generalisation in miniature Transformers trained on synthetic sequence-copying and modular-arithmetic tasks?
+
+**Sub-question:** Under what conditions does delayed generalisation (grokking) emerge on the modular-arithmetic task?
+
+- **Objectives carry the trimmed detail** (graded in the rationale/method, not the RQ): significance = alignment with large-scale scaling research (both outcomes are findings); measurement = train/val performance with the headline gap = training-minus-validation accuracy; conditional mechanism aim (only if the work goes beyond training curves + attention maps). The two task families (copy, mod-arith) each carry their own difficulty control and differ in kind, not on one scale.
+- **Source + supersession:** the canvas is the RQ's origin; this wording supersedes the earlier RQ phrasing in `plan.md`, `README.md` and `literature-review-plan.md` (header RQ + §1.2/§1.3/§7.5/§8.4), which now mirror it. Wording only - no experimental change.
+- **Open with supervisor:** confirm a sub-question is permitted (in-repo guidance asks for the RQ in one sentence; it does not forbid sub-questions). **Resolved 14 Oct:** John confirmed sub-questions are permitted - see the Meeting 2 record below.
+
+## 14-10-2026 - Meeting 2 did not take place; written update + email reply
+
+No meeting: the supervisor was not in his office at 13:30 (locked); Ahmed
+waited ~15 minutes. A written update was sent by email the same day and the
+supervisor replied. Next meeting: **Wed 28 Oct 13:30** , was my fault for not
+confirming the meeting time/day beforehand with John.
+
+- **Supervisor expectation (heard):** John had expected the meeting to be
+  confirmed beforehand ("I had thought that we would confirm before the
+  meeting"). Meetings are confirmed in advance from now on.
+- **Written update sent (14 Oct):** prototype description (~0.4M-parameter
+  scratch Transformer; one command → train → metrics → plot); `learning_curve.png`
+  attached; repo link (github.com/AhmedIkram05/tinylm-lab); Gantt chart
+  attached; the RQ proposed for freeze; a proposed sub-question; and a
+  next-steps priority (hardening, then experiments).
+- **Explicit answers (John, by reply):** the RQ "looks really good" - **RQ
+  approved as written**; **a secondary RQ is permitted** and the proposed
+  sub-question "sounds good" (multiple RQs are fine if complementary and
+  answerable in the project time); looking forward to 28 Oct.
+- **Agenda items → outcomes:**
+  1. Demo - **not demoed live** (no meeting). Plot + repo link sent by email;
+     live demo carries to 28 Oct.
+  2. Canvas gap / RQ sign-off - **RQ signed off** by email (main +
+     sub-question); the experimental plan itself was not discussed.
+  3. LSEP declaration form - **not raised in the email; still open.** Ask
+     where it is distributed on 28 Oct (Week 9 deadline).
+  4. Whole-project plan / Gantt - Gantt sent by email with link to GH repo.
+- **Carried to 28 Oct:** LSEP form source; experiments/sweeps opinion.
+
+## Agenda - Meeting 3 (Wed 28 Oct 13:30)
+
+1. Demo: live run - one command → plot; seed-reproducibility test passing;
+   `git status` clean. (Carried from meeting 2.)
+2. LSEP declaration form - where is it distributed? (Week 9 deadline.)
+3. Next-steps priority - confirm harden → experiments (decided: hardening ends
+   22 Oct; sweeps start 23 Oct, so this meeting is a mid-sweep checkpoint -
+   feedback folds into the iteration buffer).

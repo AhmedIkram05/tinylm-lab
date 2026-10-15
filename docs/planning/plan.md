@@ -2,7 +2,11 @@
 
 **Status:** Live - prototype-spec.md completed, prototype-hardening next
 
-**Research question (full canvas RQ):** how do model capacity, dataset size and task difficulty affect memorisation, generalisation and overfitting in miniature Transformers? The experiment programme runs all three factors as mainline one-factor-at-a-time series (10 seeds each) with a grokking hunt, all on the same framework. Bar: maximally impressive at every step - effort is not the constraint. The dataset-size series alone still answers the RQ with the same framework, so the programme is guaranteed deliverable under any outcome.
+**Research question:** How do model capacity, dataset size and task difficulty affect memorisation and generalisation in miniature Transformers trained on synthetic sequence-copying and modular-arithmetic tasks?
+
+**Sub-question (secondary aim):** Under what conditions does delayed generalisation (grokking) emerge on the modular-arithmetic task?
+
+> The experiment programme runs all three factors as mainline one-factor-at-a-time series (10 seeds each) with the grokking sub-question riding the modular-arithmetic thread, all on the same framework. The task set is two families, each with its own difficulty control - sequence copying (difficulty: period-2 → period-4) and modular arithmetic (difficulty: train_frac and/or modulus size) - which differ in kind (different computational behaviour), not as points on one universal difficulty scale. Bar: maximally impressive at every step - effort is not the constraint. The dataset-size series alone still answers the RQ with the same framework, so the programme is guaranteed deliverable under any outcome.
 
 ---
 
@@ -10,8 +14,8 @@
 
 | Module week | Deliverable | Weight |
 | --- | --- | --- |
-| Week 9 | Ethics / LSEP declaration form | 0% (but required) |
-| Week 13 | Interim report (literature review + project plan) | formative feedback only (0% grade) |
+| Week 9 | Ethics / LSEP declaration form | 0% |
+| Week 13 | Interim report (literature review + project plan) | formative feedback only (0%) |
 | Week 24 (Fri 02 Apr 12:00) | Final portfolio - written report 15-35 pages incl. references + artefact codebase + appendices (ethics materials, visuals, engineering docs) | 100% |
 | Week 25 (≈ Fri 30 Apr, exam weeks 25-28) | Demo: 5 min + 10 min Q&A | pass/fail |
 
@@ -21,9 +25,9 @@ Supervisor meetings: fortnightly, Wednesdays 13:30.
 
 | Phase | When (calendar) | Output |
 | --- | --- | --- |
-| Framework core - Transformer + minimal pipeline (early build) | 3 Oct - 8 Oct (6d) | One command → train → metrics → plot; tests green incl. CPU seed repro; supervisor meeting 2 (14 Oct) demos the proto-spec. Hardening 9-22 Oct (14d, incl. a week after supervisor meeting 2 (14 Oct) to fold in feedback; sweeps start 23 Oct); contingency is the iteration buffer to 30 Nov. |
+| Framework core - Transformer + minimal pipeline (early build) | 3 Oct - 8 Oct (6d) | One command → train → metrics → plot; tests green incl. CPU seed repro; hardening 9-22 Oct; sweeps start 23 Oct (after hardening ends 22 Oct); meeting 3 (28 Oct) is a mid-sweep checkpoint - its feedback folds into the iteration buffer. Contingency is the iteration buffer to 30 Nov. |
 | Reading & literature grounding | 24 Sep - 18 Dec (ongoing, feeds interim report, due 18 Dec) | sources collected in Zotero; page-anchored annotations from 8 Oct; synthesis (theme statements + gap) late Oct - mid Nov. |
-| Experiments - capacity × dataset size × task difficulty + grokking | Core sweeps 23 Oct - 13 Nov (~12 machine-hours over ~3 wks incl. reruns; measured ~6 min/axis at 500 steps, 12h is buffer for 10k-step grokking + reruns; starts after hardening ends 22 Oct); iteration buffer + grokking extension to 30 Nov | Three one-factor-at-a-time sweeps × 10 seeds on the same framework: capacity (depth/width grid at fixed dataset size), dataset size (~64/256/512/1024), task difficulty (period-2 → period-4 → modular arithmetic); pilot val per-config fresh overlapping, final curve uses fixed common val; grokking runs on the modular-arithmetic thread; gap-vs-factor comparisons; regularisation series (dropout/weight decay) as the fourth thread if compute allows (the regularisation question from the project canvas); honest failure log; any stalling thread → decision with supervisor |
+| Experiments - capacity × dataset size × task difficulty + grokking | Core sweeps 23 Oct - 13 Nov (starts after hardening ends 22 Oct); iteration buffer + grokking extension to 30 Nov | Three one-factor-at-a-time sweeps × 10 seeds on the same framework: capacity (depth/width grid at fixed dataset size), dataset size (~64/256/512/1024), task difficulty controlled within each family (copy: period-2 → period-4; mod-arith: train_frac/modulus); the two families differ in kind, not on one difficulty scale; pilot val per-config fresh overlapping, final curve uses fixed common val; grokking runs on the modular-arithmetic thread; gap-vs-factor comparisons (headline gap: training-minus-validation accuracy); regularisation series (dropout/weight decay) as the fourth thread if compute allows (the regularisation question from the project canvas); honest failure log; any stalling thread → decision with supervisor |
 | Interim report (Week 13) | late Nov - mid Dec | Project plan (written) + first lit-review synthesis draft (context / themes / closest work / gap) - dull but needed, synthesis work; formative feedback only (0% grade) |
 | Testing & evaluation | Jan - mid Feb (continuous) | Final confirmatory runs (edge cases, CPU/MPS parity, longer/more runs); sweep analysis: gap-vs-factor plots across all three series, 10-seed error bars, limitations; pilot validation per-config fresh overlapping, final curve uses fixed common val; negative results reported honestly |
 | Dissertation writing | late Jan - early Apr (to W24 Fri 02 Apr; overlaps testing to 12 Feb - analysis as runs land) | Report + appendices (configs, logs, plots) |
@@ -127,7 +131,7 @@ Reading the chart: section headings are short labels (full phase names in the ta
 | --- | --- |
 | W1 - project allocated, welcome | Done: canvas + first supervisor meeting |
 | W2-3 - literature review | First-hand annotation of the 18 Zotero sources + synthesis (context / themes / closest work / gap) running through to the interim report; framework prototype build starts (early prototyping) |
-| W4-6 - research methods & ethics | Method decisions settled in the experiment design spec; ethics stance agreed (no human data); proto-spec demoed at meeting 2 (14 Oct) |
+| W4-6 - research methods & ethics | Method decisions settled in the experiment design spec; ethics stance agreed (no human data); proto-spec demo carried to meeting 3 (28 Oct) - meeting 2 (14 Oct) did not take place |
 | W7-8 - academic writing | Workshops + the LOG.md habit; sustained writing starts with the interim report |
 | W9 - ethics due | LSEP form, **due Fri 20 Nov**; content pre-agreed, submitted as soon as the form is available |
 | W10-12 - no timetabled session | Project work: experiments wrap up (end of Nov); interim report written |
