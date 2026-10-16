@@ -1,0 +1,7 @@
+entries:
+  - config: configs/copy_n064.yaml
+    seeds: [0, 1]
+  - config: configs/does_not_exist.yaml
+    seeds: [0]
+steps_override: 50
+timeout_s: 120
