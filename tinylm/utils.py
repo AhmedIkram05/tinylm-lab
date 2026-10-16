@@ -20,6 +20,7 @@ class Config:
     period: int = 4
     n_train: int = 512
     n_val: int = 512
+    common_val: bool = False  # size-independent val pool (dataset-size series)
     d_model: int = 128
     n_heads: int = 4
     n_layers: int = 2
