@@ -1,4 +1,4 @@
-"""Training smoke tests: overfit-one-batch and the yaml -> Config round-trip."""
+"""Train-module tests: overfit-one-batch, yaml -> Config round-trip, CLI args."""
 
 import pathlib
 from dataclasses import asdict
@@ -8,7 +8,7 @@ import yaml
 
 from tinylm.data import generate_splits, make_train_generator, train_batch
 from tinylm.model import TinyLM
-from tinylm.train import causal_lm_loss
+from tinylm.train import causal_lm_loss, parse_args
 from tinylm.utils import Config, config_hash, load_config, set_seeds
 
 
@@ -67,3 +67,23 @@ def test_config_hash_changes_with_any_value() -> None:
             )
             != baseline
         )
+
+
+def test_seed_flag_parses_and_defaults_to_none() -> None:
+    assert parse_args(["--seed", "1"]).seed == 1
+    assert parse_args([]).seed is None
+
+
+def test_no_overrides_on_default_path() -> None:
+    args = parse_args([])
+    assert (args.seed, args.steps, args.device) == (None, None, None)
+
+
+def test_seed_override_applies_before_validate() -> None:
+    cfg = load_config("configs/copy.yaml")
+    override = parse_args(["--seed", "1"]).seed
+    assert override is not None
+    cfg.seed = override
+    cfg.validate()  # must not raise on the overridden value
+    assert cfg.seed == 1
+    assert load_config("configs/copy.yaml").seed == 0

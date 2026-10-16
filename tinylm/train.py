@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import torch
+import yaml
 from torch.nn import functional as F
 
 from .data import generate_splits, make_train_generator, train_batch
@@ -147,21 +149,33 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--run-name", default=None)
     p.add_argument("--steps", type=int, default=None)
     p.add_argument("--device", default=None)
+    p.add_argument("--seed", type=int, default=None)
 
     return p.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
-    cfg = load_config(args.config)
 
-    if args.steps is not None:
-        cfg.steps = args.steps
+    try:
+        cfg = load_config(args.config)
 
-    if args.device is not None:
-        cfg.device = args.device
+        if args.seed is not None:
+            cfg.seed = args.seed
 
-    cfg.validate()
+        if args.steps is not None:
+            cfg.steps = args.steps
+
+        if args.device is not None:
+            cfg.device = args.device
+
+        cfg.validate()
+        get_device(cfg.device)
+
+    except (OSError, ValueError, TypeError, RuntimeError, yaml.YAMLError) as exc:
+        print(f"config error: {exc}", file=sys.stderr)
+        sys.exit(2)
+
     run_name = args.run_name or f"copy-{datetime.now().strftime('%Y%m%d-%H%M%S')}"  # noqa: DTZ005
     run_training(cfg, Path("logs") / run_name)
 
