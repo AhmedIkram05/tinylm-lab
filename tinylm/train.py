@@ -1,4 +1,4 @@
-"""Seeded training loop for the period-copy task. Logs JSONL + one plot."""
+"""Seeded training loop for the period-copy task. Logs JSONL + sidecar + one plot."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import torch
 import yaml
-from torch.nn import functional as F
 
 from .data import generate_splits, make_train_generator, train_batch
+from .metrics import causal_lm_loss, compute_metrics, per_position_metrics
 from .model import TinyLM
 from .utils import Config, config_hash, get_device, load_config, set_seeds
 
@@ -25,34 +25,19 @@ TRAIN_BLUE = "#0072B2"  # Okabe-Ito, colour-blind safe colours palette
 VAL_VERMILION = "#D55E00"
 
 
-def causal_lm_loss(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-    """The project's one loss: next-token CE over positions 1..T-1."""
-    return F.cross_entropy(
-        logits[:, :-1].reshape(-1, logits.shape[-1]), targets[:, 1:].reshape(-1)
-    )
-
-
-def compute_metrics(
-    logits: torch.Tensor, targets: torch.Tensor, period: int
-) -> tuple[float, float]:
-    """Mean cross-entropy loss over positions 1..T-1; accuracy over copyable positions (period..T-1)."""
-    loss = causal_lm_loss(logits, targets).item()
-
-    preds = logits[:, :-1].argmax(dim=-1)  # (B, T-1): predictions for positions 1..T-1
-    acc = (preds[:, period - 1 :] == targets[:, period:]).float().mean().item()
-
-    return loss, acc
-
-
 def evaluate(
     model: TinyLM, seqs: torch.Tensor, cfg: Config, device: torch.device
-) -> tuple[float, float]:
-    """Loss/acc on a fixed sequence set, in eval mode under no_grad."""
+) -> tuple[float, float, list[float], list[float]]:
+    """Loss/acc + per-position diagnostics on a fixed set, in eval mode under no_grad."""
     model.eval()
 
     with torch.no_grad():
         targets = seqs.to(device)
-        return compute_metrics(model(targets), targets, cfg.period)
+        logits = model(targets)
+        loss, acc = compute_metrics(logits, targets, cfg.period)
+        per_pos_loss, per_pos_acc = per_position_metrics(logits, targets)
+
+        return loss, acc, per_pos_loss, per_pos_acc
 
 
 def plot_learning_curve(rows: list[dict], out: Path, vocab_size: int) -> None:
@@ -93,12 +78,17 @@ def run_training(cfg: Config, run_dir: Path) -> list[dict]:
     g = make_train_generator(cfg)
     run_dir.mkdir(parents=True, exist_ok=False)  # never overwrite a run
     rows: list[dict] = []
+    eval_rows: list[dict] = []
     t0 = time.perf_counter()
     h, tv = config_hash(cfg), torch.__version__
 
     def log_row(step: int) -> None:
-        train_loss, train_acc = evaluate(model, splits.train_probe, cfg, device)
-        val_loss, val_acc = evaluate(model, splits.val, cfg, device)
+        train_loss, train_acc, train_ploss, train_pacc = evaluate(
+            model, splits.train_probe, cfg, device
+        )
+        val_loss, val_acc, val_ploss, val_pacc = evaluate(
+            model, splits.val, cfg, device
+        )
 
         rows.append(
             {
@@ -114,8 +104,22 @@ def run_training(cfg: Config, run_dir: Path) -> list[dict]:
                 "torch_version": tv,
             }
         )
+        eval_rows.append(
+            {
+                "step": step,
+                "seed": cfg.seed,
+                "config_hash": h,
+                "train_per_pos_loss": train_ploss,
+                "train_per_pos_acc": train_pacc,
+                "val_per_pos_loss": val_ploss,
+                "val_per_pos_acc": val_pacc,
+            }
+        )
 
-    with (run_dir / "metrics.jsonl").open("w") as f:
+    metrics_path = run_dir / "metrics.jsonl"
+    positions_path = run_dir / "eval_positions.jsonl"
+
+    with metrics_path.open("w") as f, positions_path.open("w") as fx:
         for step in range(1, cfg.steps + 1):
             model.train()
             batch = train_batch(splits, cfg, g).to(device)
@@ -128,6 +132,8 @@ def run_training(cfg: Config, run_dir: Path) -> list[dict]:
                 log_row(step)
                 f.write(json.dumps(rows[-1]) + "\n")
                 f.flush()
+                fx.write(json.dumps(eval_rows[-1]) + "\n")
+                fx.flush()
 
     plot_learning_curve(rows, run_dir / "learning_curve.png", cfg.vocab_size)
     last = rows[-1]

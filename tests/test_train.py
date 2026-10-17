@@ -7,8 +7,9 @@ import torch
 import yaml
 
 from tinylm.data import generate_splits, make_train_generator, train_batch
+from tinylm.metrics import causal_lm_loss
 from tinylm.model import TinyLM
-from tinylm.train import causal_lm_loss, parse_args
+from tinylm.train import parse_args
 from tinylm.utils import Config, config_hash, load_config, set_seeds
 
 
