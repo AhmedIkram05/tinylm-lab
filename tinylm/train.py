@@ -19,10 +19,8 @@ import yaml
 from .data import generate_splits, make_train_generator, train_batch
 from .metrics import causal_lm_loss, compute_metrics, per_position_metrics
 from .model import TinyLM
+from .palette import TRAIN_BLUE, VAL_VERMILION
 from .utils import Config, config_hash, get_device, load_config, set_seeds
-
-TRAIN_BLUE = "#0072B2"  # Okabe-Ito, colour-blind safe colours palette
-VAL_VERMILION = "#D55E00"
 
 
 def evaluate(
