@@ -194,11 +194,19 @@ def run_one(
     if commit is None:
         stderr_tail = f"{commit_reason}; {stderr_tail}"[-500:]
 
+    if status != "ok":
+        hash_match = None
+    elif logged_hash is None or recomputed is None:
+        hash_match = False
+    else:
+        hash_match = logged_hash == recomputed
+
     return {
         "sweep": sweep_name,
         "config": cfg_path,
         "seed": seed,
         "config_hash": recomputed if recomputed is not None else logged_hash,
+        "hash_match": hash_match,
         "git_commit": commit,
         "run_dir": run_dir_rel,
         "status": status,

@@ -9,7 +9,6 @@ build/
 
 # Runs and artifacts
 logs/
-*.png
 
 # OS / editor
 .DS_Store
