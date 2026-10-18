@@ -12,7 +12,7 @@ Honours project (CS41001), University of Dundee. Supervisor: Dr John Lawrence.
 
 ## Status
 
-**Prototype complete** - tiny Transformer on PyTorch primitives (≈0.4M params), and a minimal end-to-end pipeline (one synthetic task → seeded training loop → logged train/val metrics → one command → one plot). Build spec: [docs/planning/prototype-spec.md](docs/planning/prototype-spec.md). `pytest` is green (26 tests), including a CPU bit-exact same-seed reproducibility test.
+**Prototype complete** - tiny Transformer on PyTorch primitives (≈0.4M params), and a minimal end-to-end pipeline (one synthetic task → seeded training loop → logged train/val metrics → one command → one plot). Build spec: [docs/planning/prototype-spec.md](docs/planning/prototype-spec.md). `pytest` is green (32 tests), including a CPU bit-exact same-seed reproducibility test.
 
 **Reporting:** the bit-exact same-seed guarantee is asserted on CPU, which makes CPU the canonical backend (MPS is faster but nondeterministic, so opt-in only). Held-out patterns share no pattern-to-pattern mapping with training patterns, so flat or rising validation curves are expected and reported as-is.
 
@@ -24,6 +24,11 @@ uv run python -m tinylm.train --config configs/copy.yaml
 
 uv run pytest
 ```
+
+Sweeps: `scripts/sweep.py --sweep <descriptor> --out <dir>` runs one subprocess per
+(config, seed) and writes a `registry.jsonl` that includes failed runs;
+`plot_gap.py` / `plot_trajectory.py` draw the gap-vs-factor and val-acc-vs-step
+figures, and `registry_to_csv.py` writes the CSV evidence.
 
 ## Documentation
 
