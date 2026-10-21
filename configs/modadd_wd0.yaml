@@ -1,0 +1,21 @@
+# Modular-arithmetic task configuration, weight-decay ablation (WD=0) sibling.
+# Sequence is [a, PLUS, b, EQ, (a+b) % modulus]; n_train/n_val are derived from
+# train_frac, so they are deliberately omitted here.
+seed: 0
+task: modadd
+modulus: 11
+vocab_size: 13
+seq_len: 5
+period: 4
+train_frac: 0.4
+d_model: 128
+n_heads: 4
+n_layers: 2
+d_ff: 512
+dropout: 0.0
+lr: 0.001
+weight_decay: 0.0  # WD ablation sibling of modadd.yaml
+batch_size: 32
+steps: 500
+eval_every: 25
+device: cpu

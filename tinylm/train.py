@@ -1,4 +1,4 @@
-"""Seeded training loop for the period-copy task. Logs JSONL + sidecar + one plot."""
+"""Seeded training loop for the copy and mod-arith tasks. Logs JSONL + sidecar + one plot."""
 
 from __future__ import annotations
 
@@ -147,7 +147,7 @@ def run_training(cfg: Config, run_dir: Path) -> list[dict]:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Train the TinyLM prototype on the period-copy task."
+        description="Train the TinyLM prototype on a synthetic task (--config selects copy or modadd)."
     )
     p.add_argument("--config", default="configs/copy.yaml")
     p.add_argument("--run-name", default=None)

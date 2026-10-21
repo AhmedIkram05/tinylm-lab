@@ -20,6 +20,8 @@ def compute_metrics(
     loss = causal_lm_loss(logits, targets).item()
 
     preds = logits[:, :-1].argmax(dim=-1)  # (B, T-1): predictions for positions 1..T-1
+    # preds index j-1 predicts target j (same convention as per_position_metrics), so
+    # the accuracy window starts one earlier on preds than on targets
     acc = (preds[:, period - 1 :] == targets[:, period:]).float().mean().item()
 
     return loss, acc
@@ -48,3 +50,17 @@ def per_position_metrics(
     per_pos_acc = (logits.argmax(dim=-1) == tgt).float().mean(dim=0).tolist()
 
     return per_pos_loss, per_pos_acc
+
+
+def answer_acc(per_pos_acc: list[float], seq_len: int) -> float:
+    """Accuracy at the answer position: the last predicted position, index ``seq_len - 2``.
+
+    Modadd's ``metrics.jsonl`` accuracy window covers only that position, so this
+    must agree with ``val_acc``. Asserts the sidecar array length rather than
+    assuming ``T - 1 == 4``.
+    """
+    assert len(per_pos_acc) == seq_len - 1, (
+        f"per_pos_acc has {len(per_pos_acc)} entries, expected {seq_len - 1}"
+    )
+
+    return per_pos_acc[seq_len - 2]

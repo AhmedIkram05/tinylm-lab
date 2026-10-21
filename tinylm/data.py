@@ -1,4 +1,4 @@
-"""Period-4 repeated-token copy task. Deterministic given Config.seed."""
+"""Copy and modular-arithmetic tasks. Deterministic given Config.seed."""
 
 from __future__ import annotations
 
@@ -21,11 +21,14 @@ class Splits:
     train_probe: (
         torch.Tensor
     )  # (min(PROBE_SIZE, n_train), seq_len) long, fixed train subset
+    # Key type is task-dependent: copy holds period-length token tuples, modadd holds
+    # ordered (a, b) operand pairs - check cfg.task before assuming token tuples.
     train_patterns: set[tuple[int, ...]]
     val_patterns: set[tuple[int, ...]]
 
 
 def _has_true_period(pattern: tuple[int, ...], period: int) -> bool:
+    """True when ``pattern``'s period is exactly ``period``, not a divisor of it."""
     if len(set(pattern)) == 1:
         return False  # period 1
 
@@ -114,8 +117,53 @@ def _copy_splits(cfg: Config) -> Splits:
     )
 
 
+def _modadd_splits(cfg: Config) -> Splits:
+    """Modular-arithmetic splits: sequences [a, PLUS, b, EQ, (a+b) % p], T=5.
+
+    Pairs are ORDERED, so (a, b) != (b, a): commutativity means a pair and its
+    mirror share an answer, which is standard random-fraction grokking design
+    (Power et al.), not a leak - logged, not "fixed".
+    """
+    p = cfg.modulus
+    rng = np.random.default_rng(cfg.seed)
+    pairs = [(a, b) for a in range(p) for b in range(p)]
+
+    if cfg.n_train + cfg.n_val > len(pairs):
+        raise ValueError(
+            f"not enough ordered pairs: {len(pairs)} < {cfg.n_train + cfg.n_val}"
+        )
+
+    perm = rng.permutation(len(pairs))
+    train_patterns = {pairs[i] for i in perm[: cfg.n_train]}
+    val_patterns = {pairs[i] for i in perm[cfg.n_train : cfg.n_train + cfg.n_val]}
+
+    assert train_patterns.isdisjoint(val_patterns), (
+        "train/val pair sets must be disjoint"
+    )
+
+    def seq(pair: tuple[int, int]) -> list[int]:
+        a, b = pair
+
+        return [a, p, b, p + 1, (a + b) % p]
+
+    train = torch.tensor([seq(pr) for pr in sorted(train_patterns)], dtype=torch.long)
+    val = torch.tensor([seq(pr) for pr in sorted(val_patterns)], dtype=torch.long)
+    probe_size = min(PROBE_SIZE, cfg.n_train)
+
+    return Splits(
+        train=train,
+        val=val,
+        train_probe=train[:probe_size],
+        train_patterns=train_patterns,
+        val_patterns=val_patterns,
+    )
+
+
 def generate_splits(cfg: Config) -> Splits:
-    """Generate train/val/probe splits for the configured task (copy for now)."""
+    """Generate train/val/probe splits for the configured task."""
+    if cfg.task == "modadd":
+        return _modadd_splits(cfg)
+
     return _copy_splits(cfg)
 
 
