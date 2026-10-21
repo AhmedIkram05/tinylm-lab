@@ -135,6 +135,12 @@ class Config:
             if name != "seed" and getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be positive")
 
+        # seed is exempt from the positivity check above (0 is valid) but must still be a
+        # valid numpy seed, or set_seeds raises deep inside training - and a sweep runner
+        # triages exit codes, so it would look like a training crash, not a config error.
+        if not 0 <= self.seed < 2**32:
+            raise ValueError("seed must be in [0, 2**32)")
+
         if self.lr <= 0:
             raise ValueError("lr must be positive")
 

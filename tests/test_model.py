@@ -1,13 +1,26 @@
 """Model correctness tests: shapes, causality, tied weights, PE values, param budget."""
 
+import dataclasses
 import math
 
+import pytest
 import torch
 
 from tinylm.model import TinyLM, sinusoidal_pe
 from tinylm.utils import Config, load_config
 
 VOCAB = 8
+CEILING = 2_000_000
+
+# capacity variants are built with dataclasses.replace over the real loader, never as
+# config files - the capacity *series* (configs/copy_d064.yaml etc.) is experiment-phase work
+CAPACITY_VARIANTS = {
+    "d064": ({"d_model": 64, "n_heads": 4, "d_ff": 256, "n_layers": 2}, 100_608),
+    "n512": ({"d_model": 128, "n_heads": 4, "d_ff": 512, "n_layers": 2}, 397_824),
+    "d256": ({"d_model": 256, "n_heads": 4, "d_ff": 1024, "n_layers": 2}, 1_582_080),
+    "l1": ({"n_layers": 1}, 199_552),
+    "l4": ({"n_layers": 4}, 794_368),
+}
 
 
 def demo_cfg() -> Config:
@@ -56,7 +69,19 @@ def test_tied_weights() -> None:
 def test_param_count() -> None:
     n = TinyLM(demo_cfg()).num_parameters()
     assert 350_000 <= n <= 450_000  # spec: ~0.4M at defaults
-    assert n < 2_000_000  # hard ceiling
+    assert n < CEILING  # hard ceiling
+
+
+@pytest.mark.parametrize(
+    ("overrides", "quoted"),
+    CAPACITY_VARIANTS.values(),
+    ids=list(CAPACITY_VARIANTS),
+)
+def test_param_count_capacity_variants(overrides: dict, quoted: int) -> None:
+    """Every capacity variant stays under the ceiling and matches its quoted size."""
+    n = TinyLM(dataclasses.replace(demo_cfg(), **overrides)).num_parameters()
+    assert n < CEILING
+    assert abs(n - quoted) <= 0.05 * quoted, f"{n} vs quoted {quoted}"
 
 
 def test_pe_exact_values() -> None:
