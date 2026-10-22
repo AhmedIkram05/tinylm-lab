@@ -14,10 +14,11 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import torch
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from .data import generate_splits, make_train_generator, train_batch
 from .metrics import (
+    EvalResult,
     causal_lm_loss,
     compute_metrics,
     per_example_span_metrics,
@@ -30,7 +31,7 @@ from .utils import Config, config_hash, get_device, load_config, set_seeds
 
 def evaluate(
     model: TinyLM, seqs: torch.Tensor, cfg: Config, device: torch.device
-) -> tuple[float, float, list[float], list[float], list[float], list[int]]:
+) -> EvalResult:
     """Loss/acc, per-position, and per-example diagnostics on a fixed set.
 
     One forward, four consumers: scalar metrics, the per-position sidecar and the
@@ -45,7 +46,7 @@ def evaluate(
         per_pos_loss, per_pos_acc = per_position_metrics(logits, targets)
         span_ce, reproduced = per_example_span_metrics(logits, targets, cfg.period)
 
-        return loss, acc, per_pos_loss, per_pos_acc, span_ce, reproduced
+        return EvalResult(loss, acc, per_pos_loss, per_pos_acc, span_ce, reproduced)
 
 
 def plot_learning_curve(rows: list[dict], out: Path, vocab_size: int) -> None:
@@ -92,25 +93,16 @@ def run_training(cfg: Config, run_dir: Path) -> list[dict]:
     h, tv = config_hash(cfg), torch.__version__
 
     def log_row(step: int) -> None:
-        (
-            train_loss,
-            train_acc,
-            train_ploss,
-            train_pacc,
-            train_xce,
-            train_xrep,
-        ) = evaluate(model, splits.train_probe, cfg, device)
-        val_loss, val_acc, val_ploss, val_pacc, val_xce, val_xrep = evaluate(
-            model, splits.val, cfg, device
-        )
+        train = evaluate(model, splits.train_probe, cfg, device)
+        val = evaluate(model, splits.val, cfg, device)
 
         rows.append(
             {
                 "step": step,
-                "train_loss": train_loss,
-                "train_acc": train_acc,
-                "val_loss": val_loss,
-                "val_acc": val_acc,
+                "train_loss": train.loss,
+                "train_acc": train.acc,
+                "val_loss": val.loss,
+                "val_acc": val.acc,
                 "lr": cfg.lr,
                 "elapsed": time.perf_counter() - t0,
                 "seed": cfg.seed,
@@ -123,10 +115,10 @@ def run_training(cfg: Config, run_dir: Path) -> list[dict]:
                 "step": step,
                 "seed": cfg.seed,
                 "config_hash": h,
-                "train_per_pos_loss": train_ploss,
-                "train_per_pos_acc": train_pacc,
-                "val_per_pos_loss": val_ploss,
-                "val_per_pos_acc": val_pacc,
+                "train_per_pos_loss": train.per_pos_loss,
+                "train_per_pos_acc": train.per_pos_acc,
+                "val_per_pos_loss": val.per_pos_loss,
+                "val_per_pos_acc": val.per_pos_acc,
             }
         )
         example_rows.append(
@@ -134,10 +126,10 @@ def run_training(cfg: Config, run_dir: Path) -> list[dict]:
                 "step": step,
                 "seed": cfg.seed,
                 "config_hash": h,
-                "train_reproduced": train_xrep,
-                "train_span_ce": train_xce,
-                "val_reproduced": val_xrep,
-                "val_span_ce": val_xce,
+                "train_reproduced": train.reproduced,
+                "train_span_ce": train.span_ce,
+                "val_reproduced": val.reproduced,
+                "val_span_ce": val.span_ce,
             }
         )
 

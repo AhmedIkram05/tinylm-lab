@@ -58,6 +58,35 @@ def load_metrics_rows(run_dir: Path) -> list[dict]:
     return load_jsonl(path)
 
 
+def load_ok_metrics(registry_path: Path) -> tuple[list[tuple[dict, list[dict]]], int]:
+    """(row, metrics) for each status==ok run with a non-empty metrics.jsonl.
+
+    Failed, malformed, and metrics-less runs are counted and skipped (never crash);
+    the returned ``skipped`` count is what callers report. Callers still apply their
+    own per-factor extraction and finite-metric checks.
+    """
+    pairs: list[tuple[dict, list[dict]]] = []
+    skipped = 0
+
+    for row in load_registry(registry_path):
+        if not isinstance(row, dict) or row.get("status") != "ok":
+            skipped += 1
+            continue
+
+        try:
+            metrics = load_metrics_rows(repo_path(row["run_dir"]))
+
+            if not metrics:
+                raise ValueError("no metric rows")
+        except (OSError, ValueError, TypeError, KeyError, IndexError, AttributeError):
+            skipped += 1
+            continue
+
+        pairs.append((row, metrics))
+
+    return pairs, skipped
+
+
 def aligned_mean_std(
     series: list[tuple[list[int], list[float]]],
 ) -> tuple[list[int], list[float], list[float]] | None:

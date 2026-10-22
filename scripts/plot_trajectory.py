@@ -18,12 +18,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from tinylm.palette import TRAIN_BLUE, VAL_VERMILION
-from tinylm.plotting import (
-    aligned_mean_std,
-    load_metrics_rows,
-    load_registry,
-    repo_path,
-)
+from tinylm.plotting import aligned_mean_std, load_ok_metrics
 
 GROK_THRESHOLD = 0.9
 METRIC_COLOURS = {"val_acc": VAL_VERMILION, "train_acc": TRAIN_BLUE}
@@ -42,15 +37,10 @@ def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     colour = METRIC_COLOURS[args.metric]
     series: list[tuple[list[int], list[float]]] = []
-    skipped = 0
+    pairs, skipped = load_ok_metrics(Path(args.registry))
 
-    for row in load_registry(Path(args.registry)):
-        if not isinstance(row, dict) or row.get("status") != "ok":
-            skipped += 1
-            continue
-
+    for _, metrics in pairs:
         try:
-            metrics = load_metrics_rows(repo_path(row["run_dir"]))
             steps = [m["step"] for m in metrics]
             values = [m[args.metric] for m in metrics]
 

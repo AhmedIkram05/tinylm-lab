@@ -71,9 +71,9 @@ def _copy_splits(cfg: Config) -> Splits:
         # sets are strictly nested (train64 ⊂ train256 ⊂ train512 ⊂ train1024)
         val_patterns = set(order[:n_val])
         train_patterns = set(order[n_val : n_val + cfg.n_train])
-        # representative probe: the first probe_size SELECTED train patterns, in drawn
-        # order (not the lowest-ID slice), so it is a random sample of the train
-        # distribution and identical across every size >= PROBE_SIZE
+        # representative probe: the first probe_size SELECTED train patterns (a random
+        # draw via the shuffled order), sorted into the tensor like train/val are. It is
+        # a random sample of the train distribution and identical across sizes >= PROBE_SIZE
         probe = torch.tensor(
             [
                 _expand(p, cfg.seq_len)

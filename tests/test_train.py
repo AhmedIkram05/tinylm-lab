@@ -4,7 +4,7 @@ import pathlib
 from dataclasses import asdict
 
 import torch
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from tinylm.data import generate_splits, make_train_generator, train_batch
 from tinylm.metrics import causal_lm_loss

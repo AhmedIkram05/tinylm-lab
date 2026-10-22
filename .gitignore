@@ -10,6 +10,10 @@ build/
 # Runs and artifacts
 logs/
 
+# Plots are artifacts everywhere except the committed evidence under docs/evidence/
+*.png
+!docs/evidence/**/*.png
+
 # OS / editor
 .DS_Store
 .idea/

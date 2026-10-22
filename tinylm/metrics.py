@@ -2,8 +2,21 @@
 
 from __future__ import annotations
 
+from typing import NamedTuple
+
 import torch
 from torch.nn import functional as F
+
+
+class EvalResult(NamedTuple):
+    """One fixed-set evaluation: scalar loss/acc + per-position and per-example diagnostics."""
+
+    loss: float
+    acc: float
+    per_pos_loss: list[float]
+    per_pos_acc: list[float]
+    span_ce: list[float]
+    reproduced: list[int]
 
 
 def causal_lm_loss(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
@@ -94,8 +107,9 @@ def answer_acc(per_pos_acc: list[float], seq_len: int) -> float:
     must agree with ``val_acc``. Asserts the sidecar array length rather than
     assuming ``T - 1 == 4``.
     """
-    assert len(per_pos_acc) == seq_len - 1, (
-        f"per_pos_acc has {len(per_pos_acc)} entries, expected {seq_len - 1}"
-    )
+    if len(per_pos_acc) != seq_len - 1:
+        raise ValueError(
+            f"per_pos_acc has {len(per_pos_acc)} entries, expected {seq_len - 1}"
+        )
 
     return per_pos_acc[seq_len - 2]

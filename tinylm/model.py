@@ -106,6 +106,7 @@ class TinyLM(nn.Module):
         super().__init__()
         self.cfg = cfg
         self.token_emb = nn.Embedding(cfg.vocab_size, cfg.d_model)
+        self.pe: torch.Tensor
         self.register_buffer(
             "pe", sinusoidal_pe(cfg.seq_len, cfg.d_model), persistent=False
         )  # (seq_len, d_model), zero params

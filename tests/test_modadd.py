@@ -163,7 +163,7 @@ def test_train_frac_derivation_and_overrides() -> None:
 
     # a bad train_frac must fail as a train_frac error, before it reaches int()
     with pytest.raises(TypeError):
-        dataclasses.replace(cfg, train_frac="0.4")
+        dataclasses.replace(cfg, train_frac="0.4")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="train_frac"):
         dataclasses.replace(cfg, train_frac=1.5)
     with pytest.raises(ValueError, match="train_frac"):

@@ -19,10 +19,10 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from tinylm.palette import TRAIN_BLUE, VAL_VERMILION
-from tinylm.plotting import load_metrics_rows, load_registry, repo_path
+from tinylm.plotting import load_ok_metrics, repo_path
 from tinylm.utils import Config, load_config
 
 
@@ -37,6 +37,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def numeric_factor(cfg: Config, field: str) -> int | float:
+    """A config factor that must be a number, for a numeric x-axis."""
+    value = getattr(cfg, field)
+
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{field} is not numeric: {value!r}")
+
+    return value
+
+
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
 
@@ -44,18 +54,16 @@ def main(argv: list[str] | None = None) -> None:
         print(f"unknown x-factor: {args.x_factor!r}", file=sys.stderr)
         sys.exit(2)
 
-    groups: dict[object, list[float]] = defaultdict(list)
-    skipped = 0
+    groups: dict[int | float, list[float]] = defaultdict(list)
+    pairs, skipped = load_ok_metrics(Path(args.registry))
 
-    for row in load_registry(Path(args.registry)):
-        if not isinstance(row, dict) or row.get("status") != "ok":
-            skipped += 1
-            continue
-
+    for row, metrics in pairs:
         try:
             # load_config (not the raw YAML) so a config that omits the factor still fills it
-            factor = getattr(load_config(repo_path(row["config"])), args.x_factor)
-            last = load_metrics_rows(repo_path(row["run_dir"]))[-1]
+            factor = numeric_factor(
+                load_config(repo_path(row["config"])), args.x_factor
+            )
+            last = metrics[-1]
             gap = last["train_acc"] - last["val_acc"]
 
             if not math.isfinite(gap):  # a diverged run must not poison the mean
@@ -78,7 +86,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"no plottable rows (skipped {skipped})", file=sys.stderr)
         sys.exit(1)
 
-    xs = sorted(groups, key=lambda x: (x is None, x))
+    xs = sorted(groups)
     multi = [x for x in xs if len(groups[x]) > 1]
     single = [x for x in xs if len(groups[x]) == 1]
 

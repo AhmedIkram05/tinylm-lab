@@ -17,9 +17,9 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
-from tinylm.plotting import load_metrics_rows, load_registry, repo_path
+from tinylm.plotting import load_ok_metrics, load_registry, repo_path
 from tinylm.utils import Config, load_config
 
 TRAIN_SATURATION = 0.99
@@ -113,26 +113,21 @@ def main(argv: list[str] | None = None) -> None:
     runs: list[dict] = []
     trajectory: list[dict] = []
     by_factor: dict[object, list[float]] = {}
-    breaches: list[str] = []
-    skipped = 0
+    # A genuine mismatch (both hashes present and different) is the only breach; a
+    # missing hash_match key (pre-amendment registry) or None (unable to compare) is
+    # unknown, not a breach.
+    breaches = [
+        f"{r.get('run_dir')} (seed {r.get('seed')})"
+        for r in registry_rows
+        if isinstance(r, dict) and r.get("hash_match") is False
+    ]
+    pairs, skipped = load_ok_metrics(Path(args.registry))
 
-    for row in registry_rows:
-        if not isinstance(row, dict):
-            skipped += 1
-            continue
-
-        if row.get("hash_match") is False:
-            breaches.append(f"{row.get('run_dir')} (seed {row.get('seed')})")
-
-        if row.get("status") != "ok":
-            skipped += 1
-            continue
-
+    for row, metrics in pairs:
         try:
             factor = getattr(load_config(repo_path(row["config"])), args.x_factor)
-            metrics = load_metrics_rows(repo_path(row["run_dir"]))
 
-            if not metrics or not all(
+            if not all(
                 "step" in m
                 and math.isfinite(m["train_acc"])
                 and math.isfinite(m["val_acc"])

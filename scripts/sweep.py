@@ -15,7 +15,7 @@ import sys
 import time
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from tinylm.utils import config_hash, load_config
 
@@ -194,12 +194,14 @@ def run_one(
     if commit is None:
         stderr_tail = f"{commit_reason}; {stderr_tail}"[-500:]
 
-    if status != "ok":
-        hash_match = None
-    elif logged_hash is None or recomputed is None:
-        hash_match = False
-    else:
+    # hash_match is True/False only when both hashes exist to compare; None means "not
+    # comparable" (failed run, or no logged/recomputed hash). A genuine False is the
+    # only case the evidence layer flags: the child logged a config hash that differs
+    # from what the runner recomputed.
+    if status == "ok" and logged_hash is not None and recomputed is not None:
         hash_match = logged_hash == recomputed
+    else:
+        hash_match = None
 
     return {
         "sweep": sweep_name,
