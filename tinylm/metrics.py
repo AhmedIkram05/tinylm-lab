@@ -52,6 +52,41 @@ def per_position_metrics(
     return per_pos_loss, per_pos_acc
 
 
+def per_example_span_metrics(
+    logits: torch.Tensor, targets: torch.Tensor, period: int
+) -> tuple[list[float], list[int]]:
+    """Per-example span CE and exact-reproduction indicator, one entry per example.
+
+    The span is the *accuracy* window ``compute_metrics`` scores: target positions
+    ``period..T-1`` (for modadd, ``period == seq_len - 1`` makes that the answer
+    token alone). It excludes positions ``1..period-1``, so span CE is not
+    comparable to ``causal_lm_loss`` / the ``metrics.jsonl`` loss. Reproduction is
+    conjunctive - exact argmax match at *every* span position - so it is
+    threshold-free, unlike a ``CE < eps`` rule. The loss is the per-example mean CE
+    over the span.
+
+    Per-EXAMPLE where ``per_position_metrics`` is per-POSITION; this is the
+    memorisation read (an example is memorised iff it is reproduced exactly).
+    """
+    seq_len = logits.shape[1]
+    if not 1 <= period < seq_len:
+        raise ValueError(f"period must be in [1, {seq_len - 1}], got {period}")
+
+    span_logits = logits[:, period - 1 : -1]  # (B, T-period, V)
+    span_targets = targets[:, period:]  # (B, T-period)
+
+    losses = F.cross_entropy(
+        span_logits.reshape(-1, span_logits.shape[-1]),
+        span_targets.reshape(-1),
+        reduction="none",
+    ).reshape(span_targets.shape)
+
+    span_ce = losses.mean(dim=1).tolist()
+    reproduced = (span_logits.argmax(dim=-1) == span_targets).all(dim=1).int().tolist()
+
+    return span_ce, reproduced
+
+
 def answer_acc(per_pos_acc: list[float], seq_len: int) -> float:
     """Accuracy at the answer position: the last predicted position, index ``seq_len - 2``.
 

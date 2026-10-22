@@ -13,13 +13,39 @@ VOCAB = 8
 CEILING = 2_000_000
 
 # capacity variants are built with dataclasses.replace over the real loader, never as
-# config files - the capacity *series* (configs/copy_d064.yaml etc.) is experiment-phase work
+# config files - the capacity *series* (configs/copy_d064.yaml etc.) is experiment-phase
+# work. Each entry is (base config, overrides, quoted parameter count).
 CAPACITY_VARIANTS = {
-    "d064": ({"d_model": 64, "n_heads": 4, "d_ff": 256, "n_layers": 2}, 100_608),
-    "n512": ({"d_model": 128, "n_heads": 4, "d_ff": 512, "n_layers": 2}, 397_824),
-    "d256": ({"d_model": 256, "n_heads": 4, "d_ff": 1024, "n_layers": 2}, 1_582_080),
-    "l1": ({"n_layers": 1}, 199_552),
-    "l4": ({"n_layers": 4}, 794_368),
+    "copy_d064": (
+        "configs/copy.yaml",
+        {"d_model": 64, "n_heads": 4, "d_ff": 256, "n_layers": 2},
+        100_608,
+    ),
+    "copy_n512": (
+        "configs/copy.yaml",
+        {"d_model": 128, "n_heads": 4, "d_ff": 512, "n_layers": 2},
+        397_824,
+    ),
+    "copy_d256": (
+        "configs/copy.yaml",
+        {"d_model": 256, "n_heads": 4, "d_ff": 1024, "n_layers": 2},
+        1_582_080,
+    ),
+    "copy_l1": ("configs/copy.yaml", {"n_layers": 1}, 199_552),
+    "copy_l4": ("configs/copy.yaml", {"n_layers": 4}, 794_368),
+    # modadd carries the wider vocab (modulus + PLUS + EQ), so every count is higher
+    "modadd_d064": (
+        "configs/modadd.yaml",
+        {"d_model": 64, "n_heads": 4, "d_ff": 256},
+        100_928,
+    ),
+    "modadd_d256": (
+        "configs/modadd.yaml",
+        {"d_model": 256, "n_heads": 4, "d_ff": 1024},
+        1_583_360,
+    ),
+    "modadd_l1": ("configs/modadd.yaml", {"n_layers": 1}, 200_192),
+    "modadd_l4": ("configs/modadd.yaml", {"n_layers": 4}, 795_008),
 }
 
 
@@ -40,12 +66,17 @@ def test_causal_mask_exact_zeros() -> None:
     m = TinyLM(cfg)
     m.eval()
     x = torch.randint(0, cfg.vocab_size, (2, cfg.seq_len))
-    _, att = m(x, return_attention=True)
-    assert isinstance(att, torch.Tensor)
-    assert att.shape == (2, cfg.n_heads, cfg.seq_len, cfg.seq_len)
+    _, attentions = m(x, return_attention=True)
+    assert len(attentions) == cfg.n_layers  # every layer, not just the last
+    assert len({id(a) for a in attentions}) == cfg.n_layers  # distinct tensors
     causal = torch.ones(cfg.seq_len, cfg.seq_len, dtype=torch.bool).tril()
-    assert bool((att[:, :, ~causal] == 0.0).all())
-    assert bool(torch.allclose(att.sum(-1), torch.ones_like(att.sum(-1)), atol=1e-5))
+
+    for att in attentions:
+        assert att.shape == (2, cfg.n_heads, cfg.seq_len, cfg.seq_len)
+        assert bool((att[:, :, ~causal] == 0.0).all())
+        assert bool(
+            torch.allclose(att.sum(-1), torch.ones_like(att.sum(-1)), atol=1e-5)
+        )
 
 
 def test_logit_invariance_to_future() -> None:
@@ -73,15 +104,17 @@ def test_param_count() -> None:
 
 
 @pytest.mark.parametrize(
-    ("overrides", "quoted"),
+    ("config", "overrides", "quoted"),
     CAPACITY_VARIANTS.values(),
     ids=list(CAPACITY_VARIANTS),
 )
-def test_param_count_capacity_variants(overrides: dict, quoted: int) -> None:
+def test_param_count_capacity_variants(
+    config: str, overrides: dict, quoted: int
+) -> None:
     """Every capacity variant stays under the ceiling and matches its quoted size."""
-    n = TinyLM(dataclasses.replace(demo_cfg(), **overrides)).num_parameters()
+    n = TinyLM(dataclasses.replace(load_config(config), **overrides)).num_parameters()
     assert n < CEILING
-    assert abs(n - quoted) <= 0.05 * quoted, f"{n} vs quoted {quoted}"
+    assert n == quoted, f"{n} vs quoted {quoted}"  # deterministic integer count
 
 
 def test_pe_exact_values() -> None:

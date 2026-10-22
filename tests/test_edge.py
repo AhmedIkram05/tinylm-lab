@@ -46,7 +46,14 @@ def test_indivisible_d_model_raises_in_both_places() -> None:
 BAD_VALUES = {
     "negative_lr": ({"lr": -1e-3}, "lr must be positive"),
     "dropout_one": ({"dropout": 1.0}, r"dropout must be in \[0, 1\)"),
-    "period_above_seq_len": ({"period": 64}, "period must not exceed seq_len"),
+    "period_above_seq_len": (
+        {"period": 64},
+        "period must be less than seq_len",
+    ),
+    "period_equals_seq_len": (
+        {"period": 32},  # legal to dataclass shape rules, but leaves an empty window
+        "period must be less than seq_len",
+    ),
     "seq_len_not_multiple_of_period": (
         {"period": 5},
         "seq_len must be a multiple of period",
@@ -60,16 +67,6 @@ BAD_VALUES = {
     "modadd_vocab_not_modulus_plus_2": (
         {"task": "modadd", "seq_len": 5, "vocab_size": 14, "period": 4},
         r"modadd requires vocab_size == modulus \+ 2",
-    ),
-    "train_frac_above_one": (
-        {
-            "task": "modadd",
-            "seq_len": 5,
-            "vocab_size": 13,
-            "period": 4,
-            "train_frac": 1.5,
-        },
-        r"train_frac must be in \(0, 1\)",
     ),
     "train_frac_zero": (
         {

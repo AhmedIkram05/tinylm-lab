@@ -95,6 +95,14 @@ def test_modadd_val_acc_matches_sidecar_answer_acc() -> None:
         # modadd's accuracy window is the answer position alone, so these are the
         # same number on two code paths
         assert abs(val_acc - answer_acc(sidecar["val_per_pos_acc"], cfg.seq_len)) < 1e-6
+
+        with (run_dir / "eval_examples.jsonl").open() as f:
+            examples = [json.loads(line) for line in f if line.strip()][-1]
+
+        # modadd's span is the answer token alone, so exact reproduction IS accuracy
+        assert sum(examples["val_reproduced"]) / len(examples["val_reproduced"]) == (
+            pytest.approx(val_acc, abs=1e-9)  # float32 mean vs exact division
+        )
     finally:
         shutil.rmtree(run_dir, ignore_errors=True)
 

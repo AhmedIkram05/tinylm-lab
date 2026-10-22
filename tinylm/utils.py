@@ -107,8 +107,10 @@ class Config:
             # period is the copy task's repeated-token length; under modadd it only
             # anchors the accuracy window (period == seq_len - 1), so these two rules
             # are copy-only.
-            if self.period > self.seq_len:
-                raise ValueError("period must not exceed seq_len")
+            if self.period >= self.seq_len:
+                raise ValueError(
+                    "period must be less than seq_len (accuracy window is empty)"
+                )
 
             if self.seq_len % self.period != 0:
                 raise ValueError("seq_len must be a multiple of period")

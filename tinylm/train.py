@@ -17,7 +17,12 @@ import torch
 import yaml
 
 from .data import generate_splits, make_train_generator, train_batch
-from .metrics import causal_lm_loss, compute_metrics, per_position_metrics
+from .metrics import (
+    causal_lm_loss,
+    compute_metrics,
+    per_example_span_metrics,
+    per_position_metrics,
+)
 from .model import TinyLM
 from .palette import TRAIN_BLUE, VAL_VERMILION
 from .utils import Config, config_hash, get_device, load_config, set_seeds
@@ -25,8 +30,12 @@ from .utils import Config, config_hash, get_device, load_config, set_seeds
 
 def evaluate(
     model: TinyLM, seqs: torch.Tensor, cfg: Config, device: torch.device
-) -> tuple[float, float, list[float], list[float]]:
-    """Loss/acc + per-position diagnostics on a fixed set, in eval mode under no_grad."""
+) -> tuple[float, float, list[float], list[float], list[float], list[int]]:
+    """Loss/acc, per-position, and per-example diagnostics on a fixed set.
+
+    One forward, four consumers: scalar metrics, the per-position sidecar and the
+    per-example span sidecar (the memorisation read) all share the same logits.
+    """
     model.eval()
 
     with torch.no_grad():
@@ -34,8 +43,9 @@ def evaluate(
         logits = model(targets)
         loss, acc = compute_metrics(logits, targets, cfg.period)
         per_pos_loss, per_pos_acc = per_position_metrics(logits, targets)
+        span_ce, reproduced = per_example_span_metrics(logits, targets, cfg.period)
 
-        return loss, acc, per_pos_loss, per_pos_acc
+        return loss, acc, per_pos_loss, per_pos_acc, span_ce, reproduced
 
 
 def plot_learning_curve(rows: list[dict], out: Path, vocab_size: int) -> None:
@@ -77,14 +87,20 @@ def run_training(cfg: Config, run_dir: Path) -> list[dict]:
     run_dir.mkdir(parents=True, exist_ok=False)  # never overwrite a run
     rows: list[dict] = []
     eval_rows: list[dict] = []
+    example_rows: list[dict] = []
     t0 = time.perf_counter()
     h, tv = config_hash(cfg), torch.__version__
 
     def log_row(step: int) -> None:
-        train_loss, train_acc, train_ploss, train_pacc = evaluate(
-            model, splits.train_probe, cfg, device
-        )
-        val_loss, val_acc, val_ploss, val_pacc = evaluate(
+        (
+            train_loss,
+            train_acc,
+            train_ploss,
+            train_pacc,
+            train_xce,
+            train_xrep,
+        ) = evaluate(model, splits.train_probe, cfg, device)
+        val_loss, val_acc, val_ploss, val_pacc, val_xce, val_xrep = evaluate(
             model, splits.val, cfg, device
         )
 
@@ -113,11 +129,27 @@ def run_training(cfg: Config, run_dir: Path) -> list[dict]:
                 "val_per_pos_acc": val_pacc,
             }
         )
+        example_rows.append(
+            {
+                "step": step,
+                "seed": cfg.seed,
+                "config_hash": h,
+                "train_reproduced": train_xrep,
+                "train_span_ce": train_xce,
+                "val_reproduced": val_xrep,
+                "val_span_ce": val_xce,
+            }
+        )
 
     metrics_path = run_dir / "metrics.jsonl"
     positions_path = run_dir / "eval_positions.jsonl"
+    examples_path = run_dir / "eval_examples.jsonl"
 
-    with metrics_path.open("w") as f, positions_path.open("w") as fx:
+    with (
+        metrics_path.open("w") as f,
+        positions_path.open("w") as fx,
+        examples_path.open("w") as fe,
+    ):
         for step in range(1, cfg.steps + 1):
             model.train()
             batch = train_batch(splits, cfg, g).to(device)
@@ -132,7 +164,12 @@ def run_training(cfg: Config, run_dir: Path) -> list[dict]:
                 f.flush()
                 fx.write(json.dumps(eval_rows[-1]) + "\n")
                 fx.flush()
+                fe.write(json.dumps(example_rows[-1]) + "\n")
+                fe.flush()
 
+    torch.save(
+        {k: v.cpu() for k, v in model.state_dict().items()}, run_dir / "model.pt"
+    )
     plot_learning_curve(rows, run_dir / "learning_curve.png", cfg.vocab_size)
     last = rows[-1]
 

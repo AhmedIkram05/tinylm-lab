@@ -12,7 +12,7 @@ Honours project (CS41001), University of Dundee. Supervisor: Dr John Lawrence.
 
 ## Status
 
-**Prototype complete** - tiny Transformer on PyTorch primitives (≈0.4M params), and a minimal end-to-end pipeline (two synthetic tasks → seeded training loop → logged train/val metrics → one command → one plot). Build spec: [docs/planning/prototype-spec.md](docs/planning/prototype-spec.md). `pytest` is green (66 tests), including a CPU bit-exact same-seed reproducibility test.
+**Prototype complete** - tiny Transformer on PyTorch primitives (≈0.4M params), and a minimal end-to-end pipeline (two synthetic tasks → seeded training loop → logged train/val metrics → one command → one plot). Build spec: [docs/planning/prototype-spec.md](docs/planning/prototype-spec.md). `pytest` is green (67 tests), including a CPU bit-exact same-seed reproducibility test.
 
 **Tasks:** sequence copying (`configs/copy.yaml`) and modular arithmetic (`configs/modadd.yaml` + `configs/modadd_wd0.yaml`) — sequences `[a, PLUS, b, EQ, (a+b) % modulus]` over 11 value tokens, `train_frac` of the 121 ordered pairs.
 
@@ -24,6 +24,8 @@ Honours project (CS41001), University of Dundee. Supervisor: Dr John Lawrence.
 uv run python -m tinylm.train --config configs/copy.yaml
 # → logs/<run>/metrics.jsonl + learning_curve.png + logs/<run>/eval_positions.jsonl
 #   (per-position arrays have seq_len - 1 entries: 31 for copy, 4 for modadd)
+#   + logs/<run>/eval_examples.jsonl (per-example reproduction + span CE, train
+#   probe and full val) + logs/<run>/model.pt (final checkpoint)
 
 uv run python -m tinylm.train --config configs/modadd.yaml
 
