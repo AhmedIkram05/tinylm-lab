@@ -30,7 +30,25 @@ he read only this file before a meeting?
 
 **Convention:** append-only - past agendas convert into meeting records with
 per-item outcomes (the plan-vs-outcome delta is informative); nothing is
-deleted.
+deleted. A completed planning document is frozen: its Status stays "Completed",
+and later work is recorded here and/or in the next phase's spec, never by rewriting
+the closed document in place.
+
+## Standing notes
+
+- **Ethics/LSEP:** no human participants or personal data → no full ethics
+  application expected; submit the LSEP declaration in Week 9.
+- **Assessment timeline:** Interim report Week 13 = **formative feedback only, 0% of
+  grade** (lit review + project plan, rubric feedback feeds the final
+  report). Dissertation / final portfolio Week 24 Friday 12:00 = **100% of
+  grade**. Demo Week 25, pass/fail (5 min demo + 10 min Q&A - must
+  be able to explain own code). LSEP/ethics due Week 9. **Track chosen:
+  primarily research with a substantial development side; formal declaration
+  at submission (canvas Q1.2).** Research-track marks (the portfolio
+  rubric): 25% RQ/rationale/lit review, 25% research design & rigour, 20%
+  artefact design & implementation, 20% analysis & conclusions, 10%
+  dissertation quality.
+- **Backups:** code → GitHub; documents → OneDrive.
 
 ## 02-10-2026 - Meeting 1 (initial, Dr John Lawrence, ~10m)
 
@@ -90,50 +108,108 @@ Recorded scope and the first build target.
   record here and from README/plan.md. The log is an internal decision-and-
   meeting record; agendas are set by Ahmed and shared at his discretion.
 
-## Agenda - Meeting 2 (Wed 14 Oct 13:30 - confirmed)
-
-1. Demo: live run - one command → plot; seed-reproducibility test
-   passing.
-2. Canvas gap to close: when to bring the finalised RQ + experimental plan
-   for sign-off.
-3. LSEP declaration form: we don't have it - ask where it's distributed
-   (MyDundee module area?) so it's ready before the Week 9 deadline.
-4. Whole-project plan / Gantt chart (W1 slides: "Agree your own plan with your
-   supervisor"): **drafted - see `docs/planning/plan.md`** - module milestones
-   fixed (LSEP W9, interim W13, portfolio W24, demo W25), project phases
-   mapped to the marking criteria, risks + guaranteed floor stated; doubles as
-   interim-report "project plan" material; LOG.md = time-actually-spent
-   record.
-
-## Standing notes
-
-- **Ethics/LSEP:** no human participants or personal data → no full ethics
-  application expected; submit the LSEP declaration in Week 9.
-- **Assessment timeline:** Interim report Week 13 = **formative feedback only, 0% of
-  grade** (lit review + project plan, rubric feedback feeds the final
-  report). Dissertation / final portfolio Week 24 Friday 12:00 = **100% of
-  grade**. Demo Week 25, pass/fail (5 min demo + 10 min Q&A - must
-  be able to explain own code). LSEP/ethics due Week 9. **Track chosen:
-  primarily research with a substantial development side; formal declaration
-  at submission (canvas Q1.2).** Research-track marks (the portfolio
-  rubric): 25% RQ/rationale/lit review, 25% research design & rigour, 20%
-  artefact design & implementation, 20% analysis & conclusions, 10%
-  dissertation quality.
-- **Backups:** code → GitHub; documents → OneDrive.
-
-## 08-10-2026 - Prototype (Transformer + pipeline + tests)
+## 08-10-2026 - Prototype Complete (Transformer + pipeline + tests)
 
 Target state: the "have the Transformer built" target from meeting 1 - `tinylm/` (utils, data, model, train), `configs/copy.yaml`, 17 pytest assertions green including the CPU bit-exact reproduction test. One command → metrics + graph/plot.
 
 - **Built:** `Config` (17 fields, validated) + YAML loader + seeds/device helpers; period-4 sampler (512/512 disjoint patterns, purity-rejected, fixed 128 probe, seeded Torch batcher); hand-written causal Transformer (sinusoidal PE, pre-LN, weight-tied output head, 397,824 parameters); training loop (pinned AdamW, LM-shift loss, copyable-position accuracy, JSONL + Okabe-Ito plot).
-
 - **Failures that taught something:** the first training run exposed an accuracy-slice off-by-one bug: `targets[:, 3:]` produced 29 target positions versus 28 prediction positions; this was fixed by aligning the slice with `targets[:, period:]`. The overfit test initially passed raw `(B,T,V)` logits to `cross_entropy`; this was a test-only bug, as the training implementation already handled the tensor dimensions correctly.
-
 - **Honest finding:** an MPS training run reached `train_acc 1.0000 / val_acc 0.9999` - at this budget, the results are consistent with the model learning the general copying rule rather than merely memorising the training patterns, but this is not yet established. The memorisation-vs-rule question therefore remains open for the experiment phase, with tougher settings such as smaller datasets and period sweeps.
 
 ## 08-10-2026 - CPU canonical, MPS opt-in only
 
-Decision: canonical training backend is CPU (`configs/copy.yaml device: cpu`); MPS is opt-in, `--device mps`. MPS is faster on the current 0.4M tranformer but CPU is still chosen for determinism and CI compatibility, *not* speed: speed bump at this current size is minutes across the whole experiment phase, while MPS's nondeterminism would void the bit-exact same-seed guarantee the seed protocol depends on.
-
+- **Decision**: canonical training backend is CPU (`configs/copy.yaml device: cpu`); MPS is opt-in, `--device mps`. MPS is faster on the current 0.4M tranformer but CPU is still chosen for determinism and CI compatibility, *not* speed: speed bump at this current size is minutes across the whole experiment phase, while MPS's nondeterminism would void the bit-exact same-seed guarantee the seed protocol depends on.
 - **Why:** `get_device("auto")` preferred MPS on this Mac, so every real run was MPS while `test_cpu_repro` proved bit-exactness on CPU - a split-brain (guarantee certified a path never used). Now main, floor run, repro test and `auto` itself are all CPU; the thing run is the thing proven deterministic.
 - **Changed:** `configs/copy.yaml` (`auto` -> `cpu`, one-time re-anchor); `get_device("auto")` now returns CPU, with MPS reachable only via `--device mps`; README Reporting line.
+
+## 13-10-2026 - Research question frozen (main RQ + sub-question)
+
+**Main RQ:** How do model capacity, dataset size and task difficulty affect memorisation and generalisation in miniature Transformers trained on synthetic sequence-copying and modular-arithmetic tasks?
+
+**Sub-question:** Under what conditions does delayed generalisation (grokking) emerge on the modular-arithmetic task?
+
+- **Objectives carry the trimmed detail** (graded in the rationale/method, not the RQ): significance = alignment with large-scale scaling research (both outcomes are findings); measurement = train/val performance with the headline gap = training-minus-validation accuracy; conditional mechanism aim (only if the work goes beyond training curves + attention maps). The two task families (copy, mod-arith) each carry their own difficulty control and differ in kind, not on one scale.
+- **Source + supersession:** the canvas is the RQ's origin; this wording supersedes the earlier RQ phrasing in `plan.md`, `README.md` and `literature-review-plan.md` (header RQ + §1.2/§1.3/§7.5/§8.4), which now mirror it. Wording only - no experimental change.
+- **Open with supervisor:** confirm a sub-question is permitted (in-repo guidance asks for the RQ in one sentence; it does not forbid sub-questions). **Resolved 14 Oct:** John confirmed sub-questions are permitted - see the Meeting 2 record below.
+
+## 14-10-2026 - Meeting 2 did not take place; written update + email reply
+
+No meeting: the supervisor was not in his office at 13:30 (locked); Ahmed
+waited ~15 minutes. A written update was sent by email the same day and the
+supervisor replied. Next meeting: **Wed 28 Oct 13:30** , was my fault for not
+confirming the meeting time/day beforehand with John.
+
+- **Supervisor expectation (heard):** John had expected the meeting to be
+  confirmed beforehand ("I had thought that we would confirm before the
+  meeting"). Meetings are confirmed in advance from now on.
+- **Written update sent (14 Oct):** prototype description (~0.4M-parameter
+  scratch Transformer; one command → train → metrics → plot); `learning_curve.png`
+  attached; repo link (github.com/AhmedIkram05/tinylm-lab); Gantt chart
+  attached; the RQ proposed for freeze; a proposed sub-question; and a
+  next-steps priority (hardening, then experiments).
+- **Explicit answers (John, by reply):** the RQ "looks really good" - **RQ
+  approved as written**; **a secondary RQ is permitted** and the proposed
+  sub-question "sounds good" (multiple RQs are fine if complementary and
+  answerable in the project time); looking forward to 28 Oct.
+- **Agenda items → outcomes:**
+  1. Demo - **not demoed live** (no meeting). Plot + repo link sent by email;
+     live demo carries to 28 Oct.
+  2. Canvas gap / RQ sign-off - **RQ signed off** by email (main +
+     sub-question); the experimental plan itself was not discussed.
+  3. LSEP declaration form - **not raised in the email; still open.** Ask
+     where it is distributed on 28 Oct (Week 9 deadline).
+  4. Whole-project plan / Gantt - Gantt sent by email with link to GH repo.
+- **Carried to 28 Oct:** LSEP form source; experiments/sweeps opinion.
+
+## Agenda - Meeting 3 (Wed 28 Oct 13:30)
+
+1. Demo: live run - one command → plot; seed-reproducibility test passing;
+   `git status` clean. (Carried from meeting 2.)
+2. LSEP declaration form - where is it distributed? (Week 9 deadline.)
+3. Next-steps priority - confirm harden → experiments (decided: hardening ends
+   22 Oct; sweeps start 23 Oct, so this meeting is a mid-sweep checkpoint -
+   feedback folds into the iteration buffer).
+
+## 22-10-2026 - Prototype hardening complete
+
+**Milestone:** the hardening phase is complete - the pipeline the experiment/sweeps phase
+will run is now trusted. It is the code at commit `3066979` (`tinylm/` and
+`configs/`), `config_hash(configs/copy.yaml)` `ebac8a349fa4`, torch 2.14.1,
+67 tests green, CPU canonical. From here the pipeline changes only by decision:
+the sweeps record the commit they ran from next to every run.
+
+- **Measurement, decided before the sweeps.** Every run now writes, at each eval,
+  a per-example exact-reproduction indicator and span CE for the train probe and
+  the full val set - exact match on every position of the task's own span, not a
+  loss threshold, so no ε had to be pre-registered. It is the only record of *when*
+  memorisation happened, not just whether. Copy stays a generalisation-gap arm;
+  mod-arith carries the memorisation / partial-algorithm gap - and the memorisation
+  signal is reported next to the raw gap, never as a decomposition of it.
+- **Two parked items un-parked.** A per-run final checkpoint lands as re-analysis
+  insurance (a mid-programme metric change must not mean re-running the grid;
+  **resume stays parked**), and attention now returns every layer, for a
+  *between-run* mechanism snapshot, never a within-run before/after.
+- **Rigour.** The prototype's reproduction guarantees survived: `configs/copy.yaml`
+  is byte-identical, `metrics.jsonl` still has exactly 10 columns, every new metric
+  went to a sidecar file, and the added `Config` fields changed `config_hash`
+  without moving a single logged number.
+- **Findings.** Baseline is seed-robust (10-seed `val_acc` 0.99977 ± 0.00042,
+  spread 0.0014), so the difficulty thread proceeds as a gap-hunt; the
+  gap appears at n=64 (mean 0.35) and on mod-arith at **both** weight decays; and
+  the 10k mod-arith run lifts `val_acc` past chance (0.014 → 0.123 against 0.091) -
+  the sub-question's regime is live before any sweep, though nowhere near grokking
+  (≥ 0.9). Mod-arith at 10 000 steps measured 78.9 s - not the ~3 min extrapolated
+  from copy (T=32) - so the grok sweep's `timeout_s: 1800` is a safety cap with ~23×
+  headroom, and the 50-step CPU↔MPS and MPS↔MPS parity deltas were both 0.0 with
+  exact accuracy equality, so CPU stays the canonical backend and MPS opt-in.
+- **Correction.** The attention chance-baseline figure ~0.054 was computed against
+  a non-causal baseline and is wrong; the correct causal values are ~0.0705 and
+  ~0.21.
+- **Caveat for the experiment phase.** The n=64 evidence was regenerated from the
+  current pipeline and now reproduces: every registry row carries `hash_match: true`
+  and a `config_hash` that recomputes from the committed config. The original run had
+  been from a dirty working tree, so the commit recorded beside it (`361a350`) was a
+  documentation-only commit that did not contain the code that actually ran. The
+  training numbers are unchanged - same-seed determinism held byte-for-byte through the
+  regeneration. The recorded `git_commit` is `3066979`; programme sweeps must still run
+  from a clean, committed tree so the commit recorded beside each run is exact.

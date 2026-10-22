@@ -106,6 +106,7 @@ class TinyLM(nn.Module):
         super().__init__()
         self.cfg = cfg
         self.token_emb = nn.Embedding(cfg.vocab_size, cfg.d_model)
+        self.pe: torch.Tensor
         self.register_buffer(
             "pe", sinusoidal_pe(cfg.seq_len, cfg.d_model), persistent=False
         )  # (seq_len, d_model), zero params
@@ -124,22 +125,23 @@ class TinyLM(nn.Module):
 
     def forward(
         self, x: torch.Tensor, return_attention: bool = False
-    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
-        """Return next-token logits, or (logits, attention) for the last layer."""
+    ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Return next-token logits, or (logits, attentions) for every layer."""
         x = self.token_emb(x) * math.sqrt(
             self.cfg.d_model
         )  # scale before adding PE (Vaswani)
 
         x = x + self.pe[: x.shape[1]]
-        att = None
+        attentions: list[torch.Tensor] = []
 
         for blk in self.blocks:
             x, att = blk(x)
+            attentions.append(att)
 
         logits = self.head(self.ln_f(x))
 
         if return_attention:
-            return logits, att
+            return logits, attentions
 
         return logits
 

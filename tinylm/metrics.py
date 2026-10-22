@@ -1,0 +1,115 @@
+"""The project's loss and metric definitions, kept out of the frozen log schema."""
+
+from __future__ import annotations
+
+from typing import NamedTuple
+
+import torch
+from torch.nn import functional as F
+
+
+class EvalResult(NamedTuple):
+    """One fixed-set evaluation: scalar loss/acc + per-position and per-example diagnostics."""
+
+    loss: float
+    acc: float
+    per_pos_loss: list[float]
+    per_pos_acc: list[float]
+    span_ce: list[float]
+    reproduced: list[int]
+
+
+def causal_lm_loss(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    """The project's one loss: next-token CE over positions 1..T-1."""
+    return F.cross_entropy(
+        logits[:, :-1].reshape(-1, logits.shape[-1]), targets[:, 1:].reshape(-1)
+    )
+
+
+def compute_metrics(
+    logits: torch.Tensor, targets: torch.Tensor, period: int
+) -> tuple[float, float]:
+    """Mean cross-entropy loss over positions 1..T-1; accuracy over copyable positions (period..T-1)."""
+    loss = causal_lm_loss(logits, targets).item()
+
+    preds = logits[:, :-1].argmax(dim=-1)  # (B, T-1): predictions for positions 1..T-1
+    # preds index j-1 predicts target j (same convention as per_position_metrics), so
+    # the accuracy window starts one earlier on preds than on targets
+    acc = (preds[:, period - 1 :] == targets[:, period:]).float().mean().item()
+
+    return loss, acc
+
+
+def per_position_metrics(
+    logits: torch.Tensor, targets: torch.Tensor
+) -> tuple[list[float], list[float]]:
+    """CE loss and argmax accuracy at every predicted position.
+
+    Returns ``(per_pos_loss, per_pos_acc)``, each of length ``T-1``: index
+    ``j-1`` holds the metric for target position ``j`` (``j = 1..T-1``), whose
+    prediction is ``logits[:, j-1]``. ``targets[:, 0]`` is never predicted.
+    Loss is the per-position mean over the batch, accuracy the per-position
+    argmax-match rate. Positions before the copy window sit at chance - that
+    is the diagnostic, so every position is reported.
+    """
+    logits = logits[:, :-1]  # (B, T-1, V): distribution for targets[:, 1:]
+    tgt = targets[:, 1:]  # (B, T-1)
+
+    losses = F.cross_entropy(
+        logits.reshape(-1, logits.shape[-1]), tgt.reshape(-1), reduction="none"
+    ).reshape(tgt.shape)
+
+    per_pos_loss = losses.mean(dim=0).tolist()
+    per_pos_acc = (logits.argmax(dim=-1) == tgt).float().mean(dim=0).tolist()
+
+    return per_pos_loss, per_pos_acc
+
+
+def per_example_span_metrics(
+    logits: torch.Tensor, targets: torch.Tensor, period: int
+) -> tuple[list[float], list[int]]:
+    """Per-example span CE and exact-reproduction indicator, one entry per example.
+
+    The span is the *accuracy* window ``compute_metrics`` scores: target positions
+    ``period..T-1`` (for modadd, ``period == seq_len - 1`` makes that the answer
+    token alone). It excludes positions ``1..period-1``, so span CE is not
+    comparable to ``causal_lm_loss`` / the ``metrics.jsonl`` loss. Reproduction is
+    conjunctive - exact argmax match at *every* span position - so it is
+    threshold-free, unlike a ``CE < eps`` rule. The loss is the per-example mean CE
+    over the span.
+
+    Per-EXAMPLE where ``per_position_metrics`` is per-POSITION; this is the
+    memorisation read (an example is memorised iff it is reproduced exactly).
+    """
+    seq_len = logits.shape[1]
+    if not 1 <= period < seq_len:
+        raise ValueError(f"period must be in [1, {seq_len - 1}], got {period}")
+
+    span_logits = logits[:, period - 1 : -1]  # (B, T-period, V)
+    span_targets = targets[:, period:]  # (B, T-period)
+
+    losses = F.cross_entropy(
+        span_logits.reshape(-1, span_logits.shape[-1]),
+        span_targets.reshape(-1),
+        reduction="none",
+    ).reshape(span_targets.shape)
+
+    span_ce = losses.mean(dim=1).tolist()
+    reproduced = (span_logits.argmax(dim=-1) == span_targets).all(dim=1).int().tolist()
+
+    return span_ce, reproduced
+
+
+def answer_acc(per_pos_acc: list[float], seq_len: int) -> float:
+    """Accuracy at the answer position: the last predicted position, index ``seq_len - 2``.
+
+    Modadd's ``metrics.jsonl`` accuracy window covers only that position, so this
+    must agree with ``val_acc``. Asserts the sidecar array length rather than
+    assuming ``T - 1 == 4``.
+    """
+    if len(per_pos_acc) != seq_len - 1:
+        raise ValueError(
+            f"per_pos_acc has {len(per_pos_acc)} entries, expected {seq_len - 1}"
+        )
+
+    return per_pos_acc[seq_len - 2]
