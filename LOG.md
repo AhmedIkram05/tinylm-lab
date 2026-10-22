@@ -30,7 +30,9 @@ he read only this file before a meeting?
 
 **Convention:** append-only - past agendas convert into meeting records with
 per-item outcomes (the plan-vs-outcome delta is informative); nothing is
-deleted.
+deleted. A completed planning document is frozen: its Status stays "Completed",
+and later work is recorded here and/or in the next phase's spec, never by rewriting
+the closed document in place.
 
 ## Standing notes
 
@@ -171,7 +173,7 @@ confirming the meeting time/day beforehand with John.
 ## 22-10-2026 - Prototype hardening complete
 
 **Milestone:** the hardening phase is complete - the pipeline the experiment/sweeps phase
-will run is now trusted. It is the code at commit `b4843c8a` (`tinylm/` and
+will run is now trusted. It is the code at commit `3066979` (`tinylm/` and
 `configs/`), `config_hash(configs/copy.yaml)` `ebac8a349fa4`, torch 2.14.1,
 67 tests green, CPU canonical. From here the pipeline changes only by decision:
 the sweeps record the commit they ran from next to every run.
@@ -181,7 +183,8 @@ the sweeps record the commit they ran from next to every run.
   the full val set - exact match on every position of the task's own span, not a
   loss threshold, so no ε had to be pre-registered. It is the only record of *when*
   memorisation happened, not just whether. Copy stays a generalisation-gap arm;
-  mod-arith carries the memorisation / partial-algorithm gap.
+  mod-arith carries the memorisation / partial-algorithm gap - and the memorisation
+  signal is reported next to the raw gap, never as a decomposition of it.
 - **Two parked items un-parked.** A per-run final checkpoint lands as re-analysis
   insurance (a mid-programme metric change must not mean re-running the grid;
   **resume stays parked**), and attention now returns every layer, for a
@@ -195,11 +198,18 @@ the sweeps record the commit they ran from next to every run.
   gap appears at n=64 (mean 0.35) and on mod-arith at **both** weight decays; and
   the 10k mod-arith run lifts `val_acc` past chance (0.014 → 0.123 against 0.091) -
   the sub-question's regime is live before any sweep, though nowhere near grokking
-  (≥ 0.9).
+  (≥ 0.9). Mod-arith at 10 000 steps measured 78.9 s - not the ~3 min extrapolated
+  from copy (T=32) - so the grok sweep's `timeout_s: 1800` is a safety cap with ~23×
+  headroom, and the 50-step CPU↔MPS and MPS↔MPS parity deltas were both 0.0 with
+  exact accuracy equality, so CPU stays the canonical backend and MPS opt-in.
 - **Correction.** The attention chance-baseline figure ~0.054 was computed against
   a non-causal baseline and is wrong; the correct causal values are ~0.0705 and
   ~0.21.
-- **Caveat for the experiment phase.** The n=64 pilot ran from a dirty working tree,
-  so the commit recorded beside it (`361a350`) is a documentation-only commit and
-  does not contain the code that actually ran. The result is still reproducible from
-  its config and seed, but programme sweeps must run from a clean, committed tree.
+- **Caveat for the experiment phase.** The n=64 evidence was regenerated from the
+  current pipeline and now reproduces: every registry row carries `hash_match: true`
+  and a `config_hash` that recomputes from the committed config. The original run had
+  been from a dirty working tree, so the commit recorded beside it (`361a350`) was a
+  documentation-only commit that did not contain the code that actually ran. The
+  training numbers are unchanged - same-seed determinism held byte-for-byte through the
+  regeneration. The recorded `git_commit` is `3066979`; programme sweeps must still run
+  from a clean, committed tree so the commit recorded beside each run is exact.
