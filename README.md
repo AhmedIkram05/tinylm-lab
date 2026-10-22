@@ -21,15 +21,15 @@ Honours project (CS41001), University of Dundee. Supervisor: Dr John Lawrence.
 ## Usage
 
 ```bash
-uv run python -m tinylm.train --config configs/copy.yaml
+uv run --frozen python -m tinylm.train --config configs/copy.yaml
 # → logs/<run>/metrics.jsonl + learning_curve.png + logs/<run>/eval_positions.jsonl
 #   (per-position arrays have seq_len - 1 entries: 31 for copy, 4 for modadd)
 #   + logs/<run>/eval_examples.jsonl (per-example reproduction + span CE, train
 #   probe and full val) + logs/<run>/model.pt (final checkpoint)
 
-uv run python -m tinylm.train --config configs/modadd.yaml
+uv run --frozen python -m tinylm.train --config configs/modadd.yaml
 
-uv run pytest
+uv run --frozen pytest
 ```
 
 Sweeps: `scripts/sweep.py --sweep <descriptor> --out <dir>` runs one subprocess per

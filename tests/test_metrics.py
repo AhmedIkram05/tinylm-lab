@@ -174,7 +174,9 @@ def test_eval_positions_sidecar_written() -> None:
         assert len(last["train_reproduced"]) == len(last["train_span_ce"]) == probe_size
         assert len(last["val_reproduced"]) == len(last["val_span_ce"]) == cfg.n_val
         assert all(type(v) is int and v in (0, 1) for v in last["val_reproduced"])
-        assert all(math.isfinite(v) for v in last["train_span_ce"] + last["val_span_ce"])
+        assert all(
+            math.isfinite(v) for v in last["train_span_ce"] + last["val_span_ce"]
+        )
         # conjunctive reproduction is stricter than position-wise accuracy
         assert sum(last["val_reproduced"]) / len(last["val_reproduced"]) <= (
             metrics_rows[-1]["val_acc"] + 1e-9
