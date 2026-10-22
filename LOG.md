@@ -167,3 +167,39 @@ confirming the meeting time/day beforehand with John.
 3. Next-steps priority - confirm harden → experiments (decided: hardening ends
    22 Oct; sweeps start 23 Oct, so this meeting is a mid-sweep checkpoint -
    feedback folds into the iteration buffer).
+
+## 22-10-2026 - Prototype hardening complete
+
+**Milestone:** the hardening phase is complete - the pipeline the experiment/sweeps phase
+will run is now trusted. It is the code at commit `b4843c8a` (`tinylm/` and
+`configs/`), `config_hash(configs/copy.yaml)` `ebac8a349fa4`, torch 2.14.1,
+67 tests green, CPU canonical. From here the pipeline changes only by decision:
+the sweeps record the commit they ran from next to every run.
+
+- **Measurement, decided before the sweeps.** Every run now writes, at each eval,
+  a per-example exact-reproduction indicator and span CE for the train probe and
+  the full val set - exact match on every position of the task's own span, not a
+  loss threshold, so no ε had to be pre-registered. It is the only record of *when*
+  memorisation happened, not just whether. Copy stays a generalisation-gap arm;
+  mod-arith carries the memorisation / partial-algorithm gap.
+- **Two parked items un-parked.** A per-run final checkpoint lands as re-analysis
+  insurance (a mid-programme metric change must not mean re-running the grid;
+  **resume stays parked**), and attention now returns every layer, for a
+  *between-run* mechanism snapshot, never a within-run before/after.
+- **Rigour.** The prototype's reproduction guarantees survived: `configs/copy.yaml`
+  is byte-identical, `metrics.jsonl` still has exactly 10 columns, every new metric
+  went to a sidecar file, and the added `Config` fields changed `config_hash`
+  without moving a single logged number.
+- **Findings.** Baseline is seed-robust (10-seed `val_acc` 0.99977 ± 0.00042,
+  spread 0.0014), so the difficulty thread proceeds as a gap-hunt; the
+  gap appears at n=64 (mean 0.35) and on mod-arith at **both** weight decays; and
+  the 10k mod-arith run lifts `val_acc` past chance (0.014 → 0.123 against 0.091) -
+  the sub-question's regime is live before any sweep, though nowhere near grokking
+  (≥ 0.9).
+- **Correction.** The attention chance-baseline figure ~0.054 was computed against
+  a non-causal baseline and is wrong; the correct causal values are ~0.0705 and
+  ~0.21.
+- **Caveat for the experiment phase.** The n=64 pilot ran from a dirty working tree,
+  so the commit recorded beside it (`361a350`) is a documentation-only commit and
+  does not contain the code that actually ran. The result is still reproducible from
+  its config and seed, but programme sweeps must run from a clean, committed tree.
